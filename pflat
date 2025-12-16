@@ -1,0 +1,853 @@
+package com.tcs.bancs.microservices.services;
+
+import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.Objects;
+import java.util.Properties;
+
+import javax.sql.DataSource;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.validation.Valid;
+
+import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.WebDataBinder;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.InitBinder;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.tcs.bancs.microservices.util.DBProcess;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.google.gson.Gson;
+import com.tcs.bancs.microservices.aggregator.AggregationServiceImpl;
+import com.tcs.bancs.microservices.config.CacheConfig;
+import com.tcs.bancs.microservices.configuration.PropertyLoader;
+import com.tcs.bancs.microservices.db.model.Brhm;
+import com.tcs.bancs.microservices.db.model.Crdd;
+import com.tcs.bancs.microservices.db.model.Ig01;
+import com.tcs.bancs.microservices.db.model.Telm;
+import com.tcs.bancs.microservices.impl.MigenqDetailsRepositoryImpl;
+import com.tcs.bancs.microservices.util.FrameworkConstants;
+import com.tcs.bancs.microservices.java.txtm.Error_Description;
+import com.tcs.bancs.microservices.java.validations.Validate_Branch;
+import com.tcs.bancs.microservices.java.validations.Validate_CIFNumber;
+import com.tcs.bancs.microservices.java.validations.Validate_Email;
+import com.tcs.bancs.microservices.java.validations.Validate_LastRow;
+import com.tcs.bancs.microservices.java.validations.Validate_MobileNumber;
+import com.tcs.bancs.microservices.java.validations.Validate_OptionCode;
+import com.tcs.bancs.microservices.java.validations.Validate_PFNumber;
+import com.tcs.bancs.microservices.java.validations.Validate_PanNumber;
+import com.tcs.bancs.microservices.java.validations.Validate_RecordCount;
+import com.tcs.bancs.microservices.java.validations.Validate_RefNum;
+import com.tcs.bancs.microservices.java.validations.Validate_Teller;
+import com.tcs.bancs.microservices.repository.day.TelmDetailDayRepo;
+import com.tcs.bancs.microservices.repository.day.CrddDetailDayRepo;
+import com.tcs.bancs.microservices.repository.day.Ig01DetailDayRepo;
+import com.tcs.bancs.microservices.java.response.ErrorResponse;
+import com.tcs.bancs.microservices.java.response.Response;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.sql.Connection;
+import com.tcs.bancs.microservices.reqbean.RequestBean_PFMOB;
+
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+
+@RestController
+@Api(value = "Aggregation_API", description = " ", tags = { "Aggregation API" })
+@RequestMapping("/")
+@Cacheable
+@CacheEvict
+public class PFMOBEnquiryService {
+
+//////////////////////////////////////////////////////////////////////////--------ENV VARIABLES STARTED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	
+	@Autowired
+	AggregationServiceImpl aggregationServiceImpl;
+
+	@Autowired
+	MigenqDetailsRepositoryImpl migDetails;
+	
+	@Autowired
+	TelmDetailDayRepo telmRepo;
+	
+	
+	@Autowired
+	Ig01DetailDayRepo ig01DeatilDayRepo;
+	
+	@Autowired
+	CrddDetailDayRepo crddDetailDayRepo;
+	
+	@Autowired
+	DBProcess dbProcess;
+
+	@Value("${UTENVCALS-BANCS-TRACE-STATE}")
+	private String bancsTraceState;
+
+	@Value("${UTENVCALS-MASTER-DQPTYPE}")
+	private String masterDQType;
+
+	@Value("${UTENVCALS-BANCS-HOST}")
+	private String bancsHost;
+
+	@Value("${UTENVCALS-FNS-SYSNUM}")
+	private String fnsSysnum;
+
+	@Value("${UTENVCALS-CTRL-SYSNUM}")
+	private String ctrlSysnum;
+
+	@Value("${UTENVCALS-DAY-SYSNUM}")
+	private String daySysnum;
+
+	@Value("${UTENVCALS-NIGHT-SYSNUM}")
+	private String nightSysnum;
+
+	@Value("${UTENVCALS-NON24H-SYSNUM}")
+	private String non24hsum;
+
+	@Value("${UTENVCALS-DEF-RMODE}")
+	private String defRMode;
+
+	@Value("${UTENVCALS-MASTER-DB-1}")
+	private String masterDB1;
+
+	@Value("${UTENVCALS-MASTER-DB-2}")
+	private String masterDB2;
+
+	@Value("${UTENVCALS-SERVICES-FLAG}")
+	private String servicesFlag;
+
+	@Value("${VC-MS-SERVICE-ID}")
+	private String serviceid;
+	
+	@Value("${pf.response.outline.location}")
+	private String PF_RES_FILE_PATH;
+	
+	@Value("${mob.response.outline.location}")
+	private String MOB_RES_FILE_PATH;
+		
+	@Value("${UTENVCALS-INSPARAM-FLAG}")
+	private String INSPARAM_FLAG;
+	
+	@Value("${UTENVCALS-INSPARAM-VALUE}")
+	private String INSPARAM_VALUE;
+	
+	@Value("${UTENVCALS-DEF-RMODE}")
+    private String dbmode;
+	
+	 @Autowired
+	 @Qualifier("dayDataSource")
+	 private DataSource dayDataSource;
+	
+//////////////////////////////////////////////////////////////////////////--------ENV VARIABLES ENDED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+	Logger logger = LoggerFactory.getLogger(PFMOBEnquiryService.class);
+	
+//////////////////////////////////////////////////////////////////////////--------PATH FILES READING STARTED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	
+	String ErrorCodeMasterFilePath = CacheConfig.frameworkConfigProperties
+			.getProperty(FrameworkConstants.LOOKUP_FILES_PATH);
+	Properties error = PropertyLoader
+			.readPropertyFile(new String(ErrorCodeMasterFilePath + "/ErrorCodeMaster.properties"));
+//////////////////////////////////////////////////////////////////////////--------PATH FILES READING ENDED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	
+	
+	private final Response responseObj;
+
+	@Autowired
+	public PFMOBEnquiryService(Response responseObj) {
+		
+		this.responseObj = responseObj;
+	}
+	
+	@InitBinder
+	public void initBinder(WebDataBinder binder) {
+		binder.setDisallowedFields(new String[] {});
+	}
+	
+//////////////////////////////////////////////////////////////////////////-------- OBJECTS CREATION STARTED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	
+	ErrorResponse 				errobj 		= new ErrorResponse();
+	Error_Description 			errdesc 	= new Error_Description();
+	PFEnquiryService_Child 		pfchild 	= new PFEnquiryService_Child();
+	MobileEnqService            mobchild1    = new MobileEnqService();
+	PanEnqService               panchild     = new PanEnqService();
+	EmailEnqService             emailchild   = new EmailEnqService();
+	
+	Validate_RefNum             refNum      = new Validate_RefNum();
+	Validate_Teller             tellerNum   = new Validate_Teller();
+	Validate_Branch             branchNum   = new Validate_Branch();
+	Validate_OptionCode         optionCode  = new Validate_OptionCode();
+	Validate_PFNumber           pfNum       = new Validate_PFNumber();
+	Validate_MobileNumber       mobNum      = new Validate_MobileNumber();
+	Validate_PanNumber          panNum      = new Validate_PanNumber();
+	Validate_Email              emailId     = new Validate_Email();
+	Validate_CIFNumber          cifNum      = new Validate_CIFNumber();
+	Validate_RecordCount        recCount    = new Validate_RecordCount();
+	Validate_LastRow            lastRow     = new Validate_LastRow();
+	Gson gson = new Gson();
+	
+	
+	
+//////////////////////////////////////////////////////////////////////////-------- OBJECTS CREATION ENDED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+
+	@SuppressWarnings({ "unchecked", "rawtypes"})
+	@ApiOperation(value = "Call PFMOB", notes = "PFMOB Service:This API is used to fetch Customer Details.")
+	@PostMapping(value = { "/PFMOBEnq" }, produces = { "application/json" })
+	@CrossOrigin()
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	@Validated
+	public ResponseEntity<Object> getCustomerDetails(@RequestBody(required = false) @Valid RequestBean_PFMOB reqbean,
+			HttpServletRequest request, @RequestHeader HttpHeaders headers, HttpServletResponse response) throws Exception {
+ 
+		
+		response.setHeader("X-Content-Type-Options", "nosniff");
+		response.setHeader("X-Frame-Options", "DENY");
+		response.setHeader("Content-Security-Policy", "default-src 'self'");
+		response.setHeader("X-XSS-Protection", "1;mode=block");
+		response.setHeader("Cache-control", "no-cache,no-store");
+		
+//////////////////////////////////////////////////////////////////////////-------- INITIAL VARIABLES--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+		
+		String IPAddress = request.getHeader("X-Forwarded-For");
+		String remoteAddress = request.getRemoteAddr();
+		String accept = request.getHeader("Content-Type");
+		DateTimeFormatter entryDate1 = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss:SSS");
+		LocalDateTime time = LocalDateTime.now();
+		String entryDate = entryDate1.format(time);
+		
+//////////////////////////////////////////////////////////////////////////-------- SERVICE VARIABLES--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+		String reqbeanstr = new String();
+		String finalResponse = new String();
+		String res_file_path = new String();
+		String refno = new String();
+		String tellerno = new String();
+		String branchno = new String();
+		String option_code = new String();
+		String pfno = new String();
+		String noOfRecords = new String();
+		String cifno = new String();
+		String mobno = new String();
+		String panno = new String();
+		String emailid = new String();
+		String chkderr = new String();
+		String sourceId  = new String();
+		String validChkdFlag = new String();
+		List<String> chkdRes = new ArrayList<>();
+		String out_response = new String();
+		String errno = new String();
+		String errDesc = new String();
+		List<String> errList = new ArrayList<>();
+		DataSource dataSource = getDataSource("day");
+		List<Telm> telm = new ArrayList<Telm>();
+		List<Brhm> brhm = new ArrayList<Brhm>();
+		List<Ig01> signonDate = new ArrayList<Ig01>();
+		List<Crdd> crdd = new ArrayList<Crdd>();
+		String sigonTelmDate = new String();
+		String teller_identifier = new String();
+		String stat = new String();
+		String sign_on_flag= new String();
+		String formattedTeller = new String();
+		String formattedBranch = new String();
+		String formattedCardFileForCrdd =  new String();
+		String formattedTellerForCrdd=  new String();
+		String formatTellerRemoveZeros=  new String();		
+		String ig01Date = new String();
+//////////////////////////////////////////////////////////////////////////-------- ENV VARIABLES--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+		
+		String callcode = "S";
+		String opt = "";
+		List<String> res = new ArrayList<String>();
+		String formattedmasterDB1 = StringUtils.rightPad(masterDB1, 15);
+		String formattedmasterDB2 = StringUtils.rightPad(masterDB2, 15);
+		String lsRecArea = bancsTraceState.trim() + masterDQType.trim() + bancsHost.trim() + fnsSysnum.trim()
+				+ ctrlSysnum.trim() + daySysnum.trim() + nightSysnum.trim() + non24hsum.trim() + defRMode.trim()
+				+ formattedmasterDB1 + formattedmasterDB2 + servicesFlag.trim()+ INSPARAM_FLAG.trim() + INSPARAM_VALUE.trim();
+//////////////////////////////////////////////////////////////////////////-------- INPUT VALIDATIONS--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	   try {
+		if(reqbean != null) {
+	    	
+	    	if(!reqbean.isEmpty()){
+	    	reqbeanstr = gson.toJson(reqbean).toString();
+	    	refno	    =  reqbean.getReferenceNumber();
+	    	tellerno = reqbean.getTellerNumber();
+	    	branchno = reqbean.getBranchNumber();
+	    	option_code = reqbean.getOption();
+		    errList  =  refNum.validateRefNum(refno);
+		    logger.info("VC------------------------Successfully read application.properties------------------------VC "+refno);
+		    errno = errList.get(1);
+		    refno = errList.get(0);
+		    if(!errno.equals("00000")) {			
+		    errDesc = error.getProperty(errno);
+			finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+			migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+			return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+
+			errList = tellerNum.validateTellerNum(refno,tellerno);
+		    errno = errList.get(1);
+		    tellerno = errList.get(0);
+			if (!errno.equals("00000")) {
+
+				errDesc = error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+
+			
+			errList = branchNum.validateBranchNum(refno,branchno);
+		    errno = errList.get(1);
+		    branchno = errList.get(0);
+			if (!errno.equals("00000")) {
+
+				errDesc = error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+			errList = optionCode.validateOptionCode(refno,option_code);
+		    errno = errList.get(1);
+		    option_code = errList.get(0);
+			if (!errno.equals("00000")) {
+
+				errDesc = error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+			if ("F".equalsIgnoreCase(option_code)) {
+
+				pfno = reqbean.getRequestData();
+				errList = pfNum.validatePFNum(refno,pfno);
+			    errno = errList.get(1);
+			    pfno = errList.get(0);
+				res_file_path = PF_RES_FILE_PATH;
+						
+				if (!errno.equals("00000")) {
+
+					errDesc = error.getProperty(errno);
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+				}
+			
+			logger.info("VC------------------------Fetched PF_RES_FILE_PATH------------------------VC "+refno);
+			} else if ("M".equalsIgnoreCase(option_code)) {
+				mobno = reqbean.getRequestData();
+				errList = mobNum.validateMobileNum(refno,mobno);
+			    errno = errList.get(1);
+			    mobno = errList.get(0);
+				res_file_path = MOB_RES_FILE_PATH;
+						
+				if (!errno.equals("00000")) {
+					errDesc = error.getProperty(errno);
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+				}
+			logger.info("VC------------------------Fetched MOB_RES_FILE_PATH------------------------VC "+refno);
+			} 
+			else if ("P".equalsIgnoreCase(option_code)) {
+				panno = reqbean.getRequestData();
+				errList = panNum.validatePanNum(refno,panno);
+			    errno = errList.get(1);
+			    panno = errList.get(0);
+				res_file_path = MOB_RES_FILE_PATH;
+						
+				if (!errno.equals("00000")) {
+					errDesc = error.getProperty(errno);
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+				}
+			logger.info("VC------------------------Fetched PAN_RES_FILE_PATH------------------------VC "+refno);
+			
+			}
+			 else if ("E".equalsIgnoreCase(option_code)) {
+					emailid = reqbean.getRequestData();
+					errList = emailId.validateEmailId(refno,emailid);
+				    errno = errList.get(1);
+				    emailid = errList.get(0);
+					res_file_path = MOB_RES_FILE_PATH;
+							
+					if (!errno.equals("00000")) {
+						errDesc = error.getProperty(errno);
+						finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+						migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+						return new ResponseEntity(finalResponse, HttpStatus.OK);
+					}
+				logger.info("VC------------------------Fetched EMAIL_RES_FILE_PATH------------------------VC "+refno);
+			 }
+			else {
+				errno = "CB426";
+				errDesc = error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+
+			cifno = reqbean.getCIFNumber();
+			chkdRes = cifNum.validateCIFNumber(refno,cifno);
+			errno = chkdRes.get(1);
+			if (!errno.equals("00000")) {
+				if (errno.equals("6240")) {
+					errDesc = error.getProperty(errno);
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+				} else {
+					chkderr = errno;
+					validChkdFlag = "N";
+				}
+			} else {
+				cifno = chkdRes.get(0);
+				validChkdFlag = "Y";
+			}
+			String requestedNoOfRecords = reqbean.getRecordCount();
+		    errList = recCount.validateRecordCount(refno,requestedNoOfRecords);	    
+		    requestedNoOfRecords = errList.get(0);
+		    errno = errList.get(1);
+			if (!errno.equals("00000")) {
+				errDesc = error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+		    
+		    String lastrow = reqbean.getLastRow();
+		    errList = lastRow.validateLastRow(refno,lastrow);	    
+		    lastrow = errList.get(0);
+		    errno = errList.get(1);
+			if (!errno.equals("00000")) {
+				errDesc = error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}			
+			
+            logger.info("VC------------------------Initiating DB Pooling------------------------VC "+refno);
+			if (accept != null && accept.contains("application/json")) {
+				
+					if (validChkdFlag.equals("Y")) {
+						
+						ArrayList<Object> queryParamsTlr = new ArrayList<>();
+						ArrayList<Object> queryParamsBrhm = new ArrayList<>();
+						ArrayList<Object> queryParamsSignonDate = new ArrayList<>();
+						ArrayList<Object> queryParamsCrddTeller = new ArrayList<>();
+						queryParamsTlr.add("003");
+						formattedTeller = StringUtils.leftPad(tellerno, 16, "0");
+						queryParamsTlr.add(formattedTeller);	
+						
+						formattedBranch = "003" + StringUtils.leftPad(branchno, 16, "0");
+						queryParamsBrhm.add(formattedBranch);
+						
+						queryParamsSignonDate.add("000");
+						
+						//For CRDD Teller Check
+						String tempString = "BYPASS_TLM.card";
+						formattedCardFileForCrdd = String.format("%-30s",tempString );
+					    formatTellerRemoveZeros = tellerno.replaceAll("^0+(?!$)", "");	
+						formattedTellerForCrdd= String.format("%-299s", formatTellerRemoveZeros);
+						
+						
+						queryParamsCrddTeller.add(formattedCardFileForCrdd);
+						queryParamsCrddTeller.add(formattedTellerForCrdd);	
+						
+						try {
+							crdd = dbProcess.fetchRepositories(null, "CRDD", "CrddDetail", "findByCrddDetails", false,true, queryParamsCrddTeller);
+							brhm = dbProcess.fetchRepositories(null, "BRHM", "BrhmDetail", "findByBrhmDetails", false,true, queryParamsBrhm);							
+						} catch (Exception e1) {
+
+							logger.info("Exception Occured at CRDD and BRHM Check " + refno );
+						}
+						
+							if (crdd != null && !crdd.isEmpty()) 
+							{
+							
+								if(formatTellerRemoveZeros.equals(crdd.get(0).getVALUE().trim())) {
+									
+									logger.info("VC------------------------Virtual Teller Validated Sucessfully------------------------VC "+refno);
+									
+									if(brhm != null && !brhm.isEmpty()) {
+									    logger.info(
+									            "VC------------------------Virtual Teller & Branch Validated Sucessfully------------------------VC "+refno);					       
+						
+
+								logger.info(
+										"VC------------------------Checking Option Code------------------------VC "+refno);
+								if ("F".equalsIgnoreCase(option_code)) {
+
+									logger.info(
+											"VC------------------------Validated PF Option_Code------------------------VC "+refno);
+									res = pfchild.callPFEnquiryChild(refno,branchno, tellerno, pfno, cifno, Integer.parseInt(requestedNoOfRecords), lastrow,dataSource,lsRecArea);
+									out_response = res.get(0);
+									noOfRecords = res.get(1);
+									
+									logger.info("VC------------------------Fetched NO_OF_RECORDS------------------------VC " + noOfRecords);
+									errno = res.get(2);
+									
+									logger.info("VC------------------------Fetched ERROR_NUMBER------------------------VC " + errno);
+
+								} else if ("M".equalsIgnoreCase(option_code)) {
+									logger.info(
+											"VC------------------------Validated Mobile Option_Code------------------------VC " + refno);
+
+									res = mobchild1.callMOBEnquiryChild(refno, branchno, tellerno, mobno, cifno, Integer.parseInt(requestedNoOfRecords),dataSource,lsRecArea);
+									out_response = res.get(0);
+									noOfRecords = res.get(1);
+									logger.info("VC------------------------Fetched NO_OF_RECORDS------------------------VC " + noOfRecords);
+									errno = res.get(2);
+									logger.info("VC------------------------Fetched ERROR_NUMBER------------------------VC " + errno);
+									
+								}
+								else if ("P".equalsIgnoreCase(option_code)) {
+									logger.info(
+											"VC------------------------Validated PAN Option_Code------------------------VC "+refno);
+
+									res = panchild.callPANEnquiryChild(refno ,branchno, tellerno, panno, cifno, Integer.parseInt(requestedNoOfRecords),dataSource,lsRecArea);
+									out_response = res.get(0);
+									noOfRecords = res.get(1);
+									logger.info("VC------------------------Fetched NO_OF_RECORDS------------------------VC " + noOfRecords);
+									errno = res.get(2);
+									logger.info("VC------------------------Fetched ERROR_NUMBER------------------------VC " + errno);
+									
+								}
+								else if("E".equalsIgnoreCase(option_code)) {
+									logger.info(
+											"VC------------------------Validated EmailID Option_Code------------------------VC "+refno);
+
+									res = emailchild.callEMAILEnquiryChild(refno,branchno, tellerno, emailid, cifno, Integer.parseInt(requestedNoOfRecords),dataSource,lsRecArea);
+									out_response = res.get(0);
+									noOfRecords = res.get(1);
+									logger.info("VC------------------------Fetched NO_OF_RECORDS------------------------VC " + noOfRecords);
+									errno = res.get(2);
+									logger.info("VC------------------------Fetched ERROR_NUMBER------------------------VC " + errno);
+									
+								}
+							}
+						
+								else {
+									logger.info("VC--------------INVALID BRANCH NUMBER--------------VC "+refno);
+									errno = "0526";
+									errDesc = error.getProperty(errno);
+									finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+									migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );								
+									return new ResponseEntity(finalResponse, HttpStatus.OK);
+								}
+							
+									
+									
+								}
+								else {
+									logger.info("VC--------------USER NOT SIGNED ON--------------VC "+refno);
+									errno = "0148";
+									errDesc = error.getProperty(errno);
+									finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+									migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+									return new ResponseEntity(finalResponse, HttpStatus.OK);
+								}
+								
+							}
+							
+							else{
+							
+
+							try {
+								telm = dbProcess.fetchRepositories(null, "TELM", "TelmDetail", "findByTelmDetails", false,true, queryParamsTlr);
+								signonDate = dbProcess.fetchRepositories(null, "IG01", "Ig01Detail", "findByIg01Details", false,true, queryParamsSignonDate);
+						        DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+						        LocalDate date = LocalDate.parse(signonDate.get(0).getCntldate(), inputFormatter);
+						        DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("ddMMyyyy");
+						        String ddmmyyyy = date.format(outputFormatter);			        
+						        ig01Date = ddmmyyyy;
+							} catch (Exception e) {
+								logger.info("Exception Occured at TELM " + refno );
+							}
+							
+							if(telm != null && !telm.isEmpty()) {
+								sign_on_flag=telm.get(0).getSIGNON_FLAG(); 
+								teller_identifier = telm.get(0).getTELLER_IDENTIFIER();
+								sigonTelmDate = telm.get(0).getSIGN_ON_DATE();
+								stat = telm.get(0).getSTAT();
+								if("Y".equals(teller_identifier)) {
+									if(brhm != null && !brhm.isEmpty()) {
+									    logger.info(
+									            "VC------------------------Virtual Teller Based On Teller Identifier & Branch Validated Sucessfully------------------------VC "+refno);					       
+						
+									    logger.info(
+												"VC------------------------Checking Option Code------------------------VC "+refno);
+								if ("F".equalsIgnoreCase(option_code)) {
+
+									logger.info(
+											"VC------------------------Validated PF Option_Code------------------------VC "+refno);
+									res = pfchild.callPFEnquiryChild(refno,branchno, tellerno, pfno, cifno, Integer.parseInt(requestedNoOfRecords), lastrow,dataSource,lsRecArea);
+									out_response = res.get(0);
+									noOfRecords = res.get(1);
+									
+									logger.info("VC------------------------Fetched NO_OF_RECORDS------------------------VC " + noOfRecords);
+									errno = res.get(2);
+									
+									logger.info("VC------------------------Fetched ERROR_NUMBER------------------------VC " + errno);
+
+								} else if ("M".equalsIgnoreCase(option_code)) {
+									logger.info(
+											"VC------------------------Validated Mobile Option_Code------------------------VC " + refno);
+
+									res = mobchild1.callMOBEnquiryChild(refno, branchno, tellerno, mobno, cifno, Integer.parseInt(requestedNoOfRecords),dataSource,lsRecArea);
+									out_response = res.get(0);
+									noOfRecords = res.get(1);
+									logger.info("VC------------------------Fetched NO_OF_RECORDS------------------------VC " + noOfRecords);
+									errno = res.get(2);
+									logger.info("VC------------------------Fetched ERROR_NUMBER------------------------VC " + errno);
+									
+								}
+								else if ("P".equalsIgnoreCase(option_code)) {
+									logger.info(
+											"VC------------------------Validated PAN Option_Code------------------------VC "+refno);
+
+									res = panchild.callPANEnquiryChild(refno ,branchno, tellerno, panno, cifno, Integer.parseInt(requestedNoOfRecords),dataSource,lsRecArea);
+									out_response = res.get(0);
+									noOfRecords = res.get(1);
+									logger.info("VC------------------------Fetched NO_OF_RECORDS------------------------VC " + noOfRecords);
+									errno = res.get(2);
+									logger.info("VC------------------------Fetched ERROR_NUMBER------------------------VC " + errno);
+									
+								}
+								else if("E".equalsIgnoreCase(option_code)) {
+									logger.info(
+											"VC------------------------Validated EmailID Option_Code------------------------VC "+refno);
+
+									res = emailchild.callEMAILEnquiryChild(refno,branchno, tellerno, emailid, cifno, Integer.parseInt(requestedNoOfRecords),dataSource,lsRecArea);
+									out_response = res.get(0);
+									noOfRecords = res.get(1);
+									logger.info("VC------------------------Fetched NO_OF_RECORDS------------------------VC " + noOfRecords);
+									errno = res.get(2);
+									logger.info("VC------------------------Fetched ERROR_NUMBER------------------------VC " + errno);
+									
+								}
+							}
+						
+								else {
+									logger.info("VC--------------INVALID BRANCH NUMBER--------------VC "+refno);
+									errno = "0526";
+									errDesc = error.getProperty(errno);
+									finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+									migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );								
+									return new ResponseEntity(finalResponse, HttpStatus.OK);
+								}
+							}
+								
+								else if("Y".equals(sign_on_flag)&& "01".equals(stat)  && Objects.equals(sigonTelmDate, ig01Date))
+								{
+									if(brhm != null && !brhm.isEmpty()) {
+									    logger.info(
+									            "VC------------------------Teller & Branch Validated Sucessfully------------------------VC "+refno);					       
+						
+									    logger.info(
+												"VC------------------------Checking Option Code------------------------VC "+refno);
+								if ("F".equalsIgnoreCase(option_code)) {
+
+									logger.info(
+											"VC------------------------Validated PF Option_Code------------------------VC "+refno);
+									res = pfchild.callPFEnquiryChild(refno,branchno, tellerno, pfno, cifno, Integer.parseInt(requestedNoOfRecords), lastrow,dataSource,lsRecArea);
+									out_response = res.get(0);
+									noOfRecords = res.get(1);
+									
+									logger.info("VC------------------------Fetched NO_OF_RECORDS------------------------VC " + noOfRecords);
+									errno = res.get(2);
+									
+									logger.info("VC------------------------Fetched ERROR_NUMBER------------------------VC " + errno);
+
+								} else if ("M".equalsIgnoreCase(option_code)) {
+									logger.info(
+											"VC------------------------Validated Mobile Option_Code------------------------VC " + refno);
+
+									res = mobchild1.callMOBEnquiryChild(refno, branchno, tellerno, mobno, cifno, Integer.parseInt(requestedNoOfRecords),dataSource,lsRecArea);
+									out_response = res.get(0);
+									noOfRecords = res.get(1);
+									logger.info("VC------------------------Fetched NO_OF_RECORDS------------------------VC " + noOfRecords);
+									errno = res.get(2);
+									logger.info("VC------------------------Fetched ERROR_NUMBER------------------------VC " + errno);
+									
+								}
+								else if ("P".equalsIgnoreCase(option_code)) {
+									logger.info(
+											"VC------------------------Validated PAN Option_Code------------------------VC "+refno);
+
+									res = panchild.callPANEnquiryChild(refno ,branchno, tellerno, panno, cifno, Integer.parseInt(requestedNoOfRecords),dataSource,lsRecArea);
+									out_response = res.get(0);
+									noOfRecords = res.get(1);
+									logger.info("VC------------------------Fetched NO_OF_RECORDS------------------------VC " + noOfRecords);
+									errno = res.get(2);
+									logger.info("VC------------------------Fetched ERROR_NUMBER------------------------VC " + errno);
+									
+								}
+								else if("E".equalsIgnoreCase(option_code)) {
+									logger.info(
+											"VC------------------------Validated EmailID Option_Code------------------------VC "+refno);
+
+									res = emailchild.callEMAILEnquiryChild(refno,branchno, tellerno, emailid, cifno, Integer.parseInt(requestedNoOfRecords),dataSource,lsRecArea);
+									out_response = res.get(0);
+									noOfRecords = res.get(1);
+									logger.info("VC------------------------Fetched NO_OF_RECORDS------------------------VC " + noOfRecords);
+									errno = res.get(2);
+									logger.info("VC------------------------Fetched ERROR_NUMBER------------------------VC " + errno);
+									
+								}
+								}
+									else {
+										logger.info("VC--------------INVALID BRANCH NUMBER--------------VC "+refno);
+										errno = "0526";
+										errDesc = error.getProperty(errno);
+										finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+										migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );								
+										return new ResponseEntity(finalResponse, HttpStatus.OK);
+									}
+									
+								}
+								
+									
+									
+							else {
+								logger.info("VC--------------USER NOT SIGNED ON--------------VC "+refno);
+								errno = "0148";
+								errDesc = error.getProperty(errno);
+								finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+								migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+								return new ResponseEntity(finalResponse, HttpStatus.OK);
+							}
+						}
+							
+							else {
+								logger.info("VC--------------INVALID TELLER NUMBER--------------VC "+refno);
+								errno = "0529";
+								errDesc = error.getProperty(errno);
+								finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+								migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+								return new ResponseEntity(finalResponse, HttpStatus.OK);
+							}
+							
+						}
+							
+							
+		
+					}	
+					  else {
+						  errno = chkderr;
+						  try(Connection connection = dataSource.getConnection()) {	
+								errDesc = errdesc.getCbsErrDesc(chkderr, callcode, opt, lsRecArea, connection);
+								}
+						  catch(SQLException e) {
+							    errno = "3293";
+								errDesc = error.getProperty(errno);
+								finalResponse = errobj.getErrorResponse(errno, errDesc, refno);				
+								migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+								return new ResponseEntity(finalResponse, HttpStatus.OK);
+						  }
+						  finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+							migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+						  return new ResponseEntity(finalResponse, HttpStatus.OK);
+					  }	  
+				
+			}
+
+			else {
+				errno = "0435";
+				errDesc = error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);			
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+	    }
+	    	else {
+	    		errno = "CB422";
+				errDesc = error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((" ".toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+	    	}
+	    }
+	
+	    	else {
+	    		errno = "CB422";
+				errDesc = error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((" ".toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+		
+		
+		
+	
+	    logger.info("VC------------------------BEFORE GETTING RESPONSE------------------------VC "+refno);
+	    
+		if (errno.equals("0000") || (errno.equals("0868") && !out_response.trim().isEmpty()) || (errno.equals("0188") && !out_response.trim().isEmpty())) {
+			errno = "";
+			finalResponse = responseObj.getResponse(res_file_path, out_response, refno, noOfRecords);
+ 			migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "0", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "success" );
+		}else if(errno.equals("3293"))
+		{
+			    errDesc = error.getProperty(errno);			
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+		}
+		else {
+			try(Connection connection = dataSource.getConnection()) {
+			errDesc = errdesc.getCbsErrDesc(errno, callcode, opt, lsRecArea,connection);
+			}
+		 catch(SQLException e1) 
+			{
+			        errno = "3293";
+				    errDesc = error.getProperty(errno);		
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+			finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+			migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+			return new ResponseEntity(finalResponse, HttpStatus.OK);
+		}
+		
+		
+	} catch(Exception  ex) {
+		logger.info("EXCEPTION OCCURED IN PFMOB ENQUIRY " +  refno);
+		errno = "0155";
+		errDesc = error.getProperty(errno);
+		finalResponse = errobj.getErrorResponse(errno, errDesc, refno);	
+		migDetails.saveToLogDB(Base64.getEncoder().encodeToString((" ".toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+		return new ResponseEntity(finalResponse, HttpStatus.OK);
+	}
+	   return new ResponseEntity(finalResponse, HttpStatus.OK); 
+	}   
+private DataSource getDataSource(String dbType) {
+    switch (dbType) {
+        case "day":
+            return dayDataSource;
+        default:
+            throw new IllegalArgumentException("Unsupported database type: " + dbType);
+    }
+}
+}
+//END OF IR 25100006
