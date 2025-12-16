@@ -1,0 +1,185 @@
+package com.tcs.bancs.microservices.services;
+
+import java.math.BigInteger;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.*;
+import java.util.concurrent.*;
+import javax.sql.DataSource;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.microfocus.cobol.runtimeservices.RunUnit;
+import com.tcs.bancs.microservices.config.CacheConfig;
+import com.tcs.bancs.microservices.configuration.PropertyLoader;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.*;
+import com.tcs.bancs.microservices.util.FrameworkConstants;
+
+public class MobileEnqService {
+
+    private static final Logger logger = LoggerFactory.getLogger(MobileEnqService.class);
+
+    /** 
+     * IMPORTANT:
+     * Must be <= Hikari maxPoolSize
+     * Recommended: maxPoolSize - 5
+     */
+    private static final ExecutorService MOB_EXECUTOR =
+            Executors.newFixedThreadPool(10);
+
+    private final Properties custStatus;
+
+    public MobileEnqService() {
+        String customerStatusPath =
+                CacheConfig.frameworkConfigProperties.getProperty(
+                        FrameworkConstants.LOOKUP_FILES_PATH);
+        custStatus = PropertyLoader.readPropertyFile(
+                customerStatusPath + "/CustomerStatus.properties");
+    }
+
+    public List<String> callMOBEnquiryChild(
+            String refno,
+            String branchno,
+            String tellerno,
+            String mobno,
+            String cifno,
+            int requestedNumberOfRecords,
+            DataSource dataSource,
+            String commonArea)
+            throws InterruptedException, ExecutionException {
+
+        logger.info("VC MOB Enquiry Child Service Started {}", refno);
+
+        int maxRecords = requestedNumberOfRecords > 0
+                ? requestedNumberOfRecords : 60;
+
+        String lacctno = (cifno == null)
+                ? "00000000000000000"
+                : String.format("%017d", new BigInteger(cifno));
+
+        List<CompletableFuture<ResponseData>> futures = new ArrayList<>();
+        StringBuilder responseBuilder = new StringBuilder();
+        int fetchedCount = 0;
+        String errno = "0000";
+
+        while (fetchedCount < maxRecords) {
+
+            final String currentLacctno = lacctno;
+
+            CompletableFuture<ResponseData> future =
+                    CompletableFuture.supplyAsync(() -> {
+
+                        try (Connection conn = dataSource.getConnection()) {
+
+                            RunUnit runUnit = new RunUnit();
+                            JVMMOB jvmmob = new JVMMOB();
+
+                            LsBranchNo branch = new LsBranchNo();
+                            LsTellerNo teller = new LsTellerNo();
+                            LsMobNumber mob = new LsMobNumber();
+                            LsCustomerNo cust = new LsCustomerNo();
+                            LsFunction func = new LsFunction();
+                            LsPanNumber pan = new LsPanNumber();
+                            LsEmail email = new LsEmail();
+                            LsRecordArea recArea = new LsRecordArea();
+
+                            LsDataOut dataOut = new LsDataOut();
+                            LsErrorMsgNo errOut = new LsErrorMsgNo();
+                            LsLastCust lastCust = new LsLastCust();
+                            LsLastNumCuid lastCuid = new LsLastNumCuid();
+
+                            branch.setLsBranchNo(
+                                    String.format("%016d",
+                                            Integer.parseInt(branchno)));
+                            teller.setLsTellerNo(tellerno);
+                            mob.setLsMobNumber(mobno);
+                            cust.setLsCustomerNo(currentLacctno);
+                            func.setLsFunction("M");
+                            pan.setLsPanNumber("");
+                            email.setLsEmail("");
+                            recArea.setLsRecordArea(commonArea);
+                            lastCuid.setLsLastNumCuid("");
+
+                            runUnit.Add(jvmmob);
+
+                            runUnit.Call(
+                                    "JVMMOB",
+                                    branch.get_Reference(),
+                                    teller.get_Reference(),
+                                    mob.get_Reference(),
+                                    pan.get_Reference(),
+                                    email.get_Reference(),
+                                    cust.get_Reference(),
+                                    func.get_Reference(),
+                                    dataOut.get_Reference(),
+                                    errOut.get_Reference(),
+                                    lastCust.get_Reference(),
+                                    lastCuid.get_Reference(),
+                                    recArea.get_Reference(),
+                                    conn
+                            );
+
+                            runUnit.close();
+
+                            ResponseData rd = new ResponseData();
+                            rd.outResponse = dataOut.getLsDataOut();
+                            rd.errno = errOut.getLsErrorMsgNo();
+                            rd.lacctno = lastCust.getLsLastCust();
+                            return rd;
+
+                        } catch (Exception e) {
+                            logger.error("MOB Enquiry async failure", e);
+                            ResponseData rd = new ResponseData();
+                            rd.errno = "3293";
+                            return rd;
+                        }
+                    }, MOB_EXECUTOR);
+
+            futures.add(future);
+
+            ResponseData result = future.get(); // controlled wait
+
+            if (result.outResponse == null || result.outResponse.trim().isEmpty()) {
+                errno = result.errno;
+                break;
+            }
+
+            lacctno = result.lacctno;
+
+            String out = result.outResponse;
+            int idx = 0;
+
+            while (idx + 83 <= out.length() && fetchedCount < maxRecords) {
+
+                String record = out.substring(idx, idx + 83);
+                if (record.trim().isEmpty()) break;
+
+                String statusCode = record.substring(77, 80);
+                String desc = custStatus.getProperty(
+                        statusCode, " ".repeat(100));
+
+                responseBuilder.append(record).append(desc);
+                fetchedCount++;
+                idx += 83;
+            }
+        }
+
+        List<String> response = new ArrayList<>();
+        response.add(responseBuilder.toString());
+        response.add(String.valueOf(fetchedCount));
+        response.add(fetchedCount == 0 ? errno : "0000");
+
+        logger.info("VC MOB Enquiry Child Service Ended {} records={}",
+                refno, fetchedCount);
+
+        return response;
+    }
+
+    private static class ResponseData {
+        String outResponse;
+        String errno;
+        String lacctno;
+    }
+}
