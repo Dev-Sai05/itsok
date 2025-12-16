@@ -1,0 +1,191 @@
+//           SBI Core Banking Project, Hyderabad, India.          *
+//*****************************************************************
+//                                                                *
+//  	           PROGRAM - PFMOBEnquiryService.Java                 
+//                                                                *
+//*****************************************************************
+//                 P R O G R A M    H I S T O R Y                 *
+//                                                                *
+//   PROGRAMMER    :    DATE       :  SPR NO   :   COMMENTS       *
+//----------------------------------------------------------------*
+//Niharika Tammana : 15/10/2024    : 24090001  :  MICROSERVICES   *
+//Naga Sai Ganesh  : 15/10/2024    : 24090001  :  MICROSERVICES   *
+//Niharika Tammana : 24/01/2025    : 25010222  :  MICROSERVICES   *
+//Purna Tirunagari: 01/10/2025    : 25100006  :  MICROSERVICES   *
+//----------------------------------------------------------------*
+//START OF IR 25100006
+package com.tcs.bancs.microservices.services;
+
+import java.math.BigInteger;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.*;
+import javax.sql.DataSource;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.microfocus.cobol.runtimeservices.RunUnit;
+import com.tcs.bancs.microservices.config.CacheConfig;
+import com.tcs.bancs.microservices.configuration.PropertyLoader;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsBranchNo;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsCustomerNo;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsDataOut;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsEmail;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsErrorMsgNo;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsFunction;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsLastCust;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsLastNumCuid;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsMobNumber;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsPanNumber;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsRecordArea;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsTellerNo;
+import com.tcs.bancs.microservices.util.FrameworkConstants;
+
+public class MobileEnqService {
+	
+	Logger logger = LoggerFactory.getLogger(MobileEnqService.class);
+	Connection connection;
+	String errno = new String();
+	String customerStatus = CacheConfig.frameworkConfigProperties.getProperty(FrameworkConstants.LOOKUP_FILES_PATH);
+	Properties custStatus = PropertyLoader
+			.readPropertyFile(new String(customerStatus + "/CustomerStatus.properties"));
+	
+	public List<String> callMOBEnquiryChild( String refno,String branchno, String tellerno, String mobno, String cifno, int requestedNumberOfRecords,DataSource dataSource,String commonArea) throws InterruptedException, ExecutionException {
+		
+		logger.info("VC------------------------MOB Enquiry Child Service Started------------------------VC "+refno);
+
+		String lacctno = cifno == null ? "00000000000000000" : String.format("%017d", new BigInteger(cifno));
+		
+        int numberOfRecordsToFetch = requestedNumberOfRecords > 0 ? requestedNumberOfRecords : 60;
+
+        List<CompletableFuture<ResponseData>> futures = new ArrayList<>();
+
+        ForkJoinPool customThreadPool = new ForkJoinPool(25);
+        
+    	StringBuffer allRecordsBuilder = new StringBuffer();
+   	    String tempFlag = "";
+        int fetchedRecordsCount = 0;
+        RunUnit run1 = new RunUnit();
+        try (Connection connection = dataSource.getConnection()){
+        while (fetchedRecordsCount < numberOfRecordsToFetch) {
+            final String currentLacctno = lacctno;
+           
+            CompletableFuture<ResponseData> future = CompletableFuture.supplyAsync(() -> {
+            	JVMMOB jvmmob = new JVMMOB();
+            	LsBranchNo  	mobinput1	= new LsBranchNo();
+            	LsTellerNo	    mobinput2	= new LsTellerNo();
+                LsMobNumber 	mobinput3 	= new LsMobNumber();
+                LsCustomerNo    mobinput4	= new LsCustomerNo();
+                LsFunction	    mobinput5	= new LsFunction();
+				
+                LsPanNumber     mobinput6   = new LsPanNumber();
+                LsEmail         mobinput7   = new LsEmail();
+                LsRecordArea    mobinput8   = new LsRecordArea();
+                LsDataOut 	    moboutput1 	= new LsDataOut();
+                LsErrorMsgNo    moboutput2 	= new LsErrorMsgNo();
+                LsLastCust      moboutput3 	= new LsLastCust();
+                LsLastNumCuid	mobcuid		= new LsLastNumCuid();
+                mobinput2.setLsTellerNo(tellerno);
+                mobinput1.setLsBranchNo(String.format("%016d", Integer.parseInt(branchno)));  
+                mobinput3.setLsMobNumber(mobno);
+                mobinput4.setLsCustomerNo(currentLacctno);
+                mobinput5.setLsFunction("M");
+                mobinput6.setLsPanNumber("");
+                mobinput7.setLsEmail("");
+                mobcuid.setLsLastNumCuid("");
+                mobinput8.setLsRecordArea(commonArea);
+           
+                run1.Add(jvmmob);
+                
+             // Call the JVMAVBL service
+                run1.Call("JVMMOB", mobinput1.get_Reference(), mobinput2.get_Reference(), mobinput3.get_Reference(),mobinput6.get_Reference(),mobinput7.get_Reference(), mobinput4.get_Reference(),mobinput5.get_Reference(), moboutput1.get_Reference(), moboutput2.get_Reference(), moboutput3.get_Reference(),mobcuid.get_Reference(), mobinput8.get_Reference(),connection );
+                
+                ResponseData responseData  = new ResponseData();
+                responseData.outResponse   = moboutput1.getLsDataOut();
+                responseData.errno         = moboutput2.getLsErrorMsgNo();
+                responseData.lacctno       = moboutput3.getLsLastCust();
+                return responseData;
+            }, customThreadPool);
+
+            futures.add(future);
+            
+            ResponseData lastResult = futures.get(futures.size() - 1).get();
+
+            if (lastResult.outResponse == null || lastResult.outResponse.trim().isEmpty()) {
+               logger.error("No outResponse from JVMMOB. Terminating process.");
+              
+                break;
+            }
+           
+            lacctno = lastResult.lacctno;
+
+            String outResponse = lastResult.outResponse;
+            int startIndex = 0;
+            int endIndex = 0;
+            while (startIndex + 83 <= outResponse.length() && fetchedRecordsCount < numberOfRecordsToFetch) {
+                endIndex = startIndex + 83;
+                String tempBreak = outResponse.substring(startIndex, endIndex);
+                if(tempBreak==null||tempBreak.trim().isEmpty())
+                {
+                	break;
+                }
+                String lastThree = tempBreak.substring(77,80);
+                String custDesc = custStatus.getProperty(lastThree);
+                custDesc = (custDesc==null) ? " ".repeat(100) : custDesc;
+                allRecordsBuilder.append(outResponse.substring(startIndex, endIndex)+custDesc);
+                startIndex = endIndex;
+                fetchedRecordsCount++;
+            }
+        }
+        run1.close();
+        tempFlag = "Y";
+        
+        logger.info("VC------------------------Mobile Enquiry Service no of records fetched : " +fetchedRecordsCount+" ------------------------VC " + refno);
+    } 
+        
+        catch (SQLException e)
+        {
+        	errno = "3293";
+        	tempFlag = "N";
+        } 
+
+        List<String> res = new ArrayList<>();
+        res.add(allRecordsBuilder.toString()); 
+        res.add(String.valueOf(fetchedRecordsCount)); 
+        if("Y".equals(tempFlag))
+        {
+        	if(allRecordsBuilder.length()==0)
+        	{
+        		res.add(futures.get(futures.size() - 1).get().errno); 
+        	}
+        	else
+        	{
+        		res.add("0000");
+        	}
+        }
+        else
+        {
+        	res.add(errno);
+        }
+
+        logger.info("VC------------------------MOB Enquiry Child Service Ended------------------------VC "+refno);
+
+        customThreadPool.shutdown();
+		
+        return res;
+        
+        
+    }
+		    private class ResponseData {
+		        String outResponse;
+		        String errno;
+		        String lacctno;
+		      
+	    }
+}
+//END OF IR 25100006
