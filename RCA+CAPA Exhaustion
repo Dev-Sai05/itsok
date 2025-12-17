@@ -1,0 +1,113 @@
+Root Cause Analysis (RCA) & CAPA Document
+Project: PFMOB Enquiry Microservice
+Service: PFMOBEnquiryService
+Prepared By: [Your Name]
+Date: 16-Dec-2025
+
+1. Incident Summary
+Incident: Service requests to PFMOBEnquiryService fail intermittently during peak load.
+
+Observed Behavior:
+oRequests take up to 60 seconds and then fail.
+
+oPod restarts observed due to database connection exhaustion.
+
+oConcurrent requests cause second requests to fail while the first request is still processing.
+
+Impact:
+oCustomer data fetch API is intermittently unavailable.
+
+oService downtime affects dependent microservices.
+
+2. Scope
+The RCA focuses on:
+oPFMOBEnquiryService Java REST API.
+
+oHikariCP / DataSource connection handling.
+
+oParallel request handling in Spring Boot.
+
+oDatabase query execution in dbProcess.fetchRepositories.
+
+3. Detailed Analysis
+3.1 Service Design Observations
+1.The service is a single REST endpoint /PFMOBEnq handling multiple option codes (F, M, P, E).
+
+2.Multiple validation layers are executed sequentially, each hitting the database (migDetails.saveToLogDB).
+
+3.Conditional branching logic for different requests leads to repetitive database fetches (CRDD, BRHM, TELM, IG01) inside nested if-else blocks.
+
+4.DataSource dataSource = getDataSource("day") is used for all DB calls.
+
+5.HikariCP connection is obtained in multiple places but sometimes not closed explicitly if exceptions occur.
+3.2 Root Causes Identified
+1.Database Connection Pool Exhaustion
+oEach API call opens multiple connections for validations, repository fetches, and child service calls (PFEnquiryChild, MobileEnqChild, etc.).
+
+oConnections are sometimes held for long durations due to nested sequential processing.
+
+oHigh parallel requests (>=30 concurrent) consume all connections → new requests are queued → 60s timeout → pod restarts.
+2.Synchronous Processing
+oChild service calls (callPFEnquiryChild, callMOBEnquiryChild) are synchronous.
+
+oParallel incoming requests are blocked until DB calls complete, causing request queue buildup.
+3.Repeated DataSource Fetches
+oMultiple calls to dbProcess.fetchRepositories per request without connection reuse.
+
+oNo connection release in case of exceptions.
+4.Logging to DB in Each Step
+omigDetails.saveToLogDB is called for every validation and error scenario.
+
+oLogging itself opens DB connections, increasing load under concurrency.
+5.@Cacheable/@CacheEvict Misuse
+o@Cacheable and @CacheEvict annotations at the class level may cause unexpected caching behavior.
+3.3 Evidence
+Observation	Evidence
+30+ connections in pool exhausted	HikariCP metrics & pod logs
+Requests queued for 60000ms	Spring Boot request timeout logs
+Pod restarts	kubectl describe pod <pod>: Liveness/Readiness failures
+Slow response on child service call	Nested callPFEnquiryChild logging timestamps
+
+4. Corrective Actions
+1.Refactor DB Calls
+oUse a single DB connection per request where possible.
+
+oEnsure try-with-resources is used for all connection fetches.
+2.Connection Pool Tuning
+oIncrease HikariCP max pool size for peak load.
+
+oReduce idle timeout and set proper connection validation.
+3.Introduce Asynchronous Processing
+oOffload child service calls (PFEnquiryChild, MOBEnquiryChild) to CompletableFuture or executor threads.
+
+oReduce request blocking in synchronous paths.
+4.Optimize Logging
+oLog to DB asynchronously or batch logs instead of per validation step.
+5.Remove Unnecessary @Cacheable/@CacheEvict
+oUse method-level caching only where repeated data fetch occurs.
+
+5. Preventive Actions
+1.Implement connection leak detection in HikariCP (leakDetectionThreshold).
+
+2.Introduce load testing with concurrent requests ≥ expected production load.
+
+3.Monitor connection pool metrics via actuator or Prometheus/Grafana.
+
+4.Train developers on efficient DB access patterns.
+
+5.Apply standard error handling to release connections in all exception scenarios.
+
+6. Recommended Next Steps
+1.Refactor service to reduce sequential DB calls.
+
+2.Implement asynchronous child service processing.
+
+3.Tune HikariCP connection pool configuration.
+
+4.Implement proper logging and error handling.
+
+5.Conduct load testing to validate fixes.
+
+7. Conclusion
+The root cause of pod restarts and 60s request failures is database connection pool exhaustion due to sequential and excessive DB calls combined with synchronous child service calls and per-validation DB logging.
+Corrective actions include connection reuse, async processing, optimized logging, and connection pool tuning.
