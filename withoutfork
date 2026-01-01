@@ -1,0 +1,173 @@
+package com.tcs.bancs.microservices.services;
+
+import java.math.BigInteger;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.*;
+import javax.sql.DataSource;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.microfocus.cobol.runtimeservices.RunUnit;
+import com.tcs.bancs.microservices.config.CacheConfig;
+import com.tcs.bancs.microservices.configuration.PropertyLoader;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsBranchNo;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsCustomerNo;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsDataOut;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsEmail;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsErrorMsgNo;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsFunction;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsLastCust;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsLastNumCuid;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsMobNumber;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsPanNumber;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsRecordArea;
+import com.tcs.bancs.microservices.jvm.scpf.JVMMOB.LsTellerNo;
+import com.tcs.bancs.microservices.util.FrameworkConstants;
+
+public class MobileEnqService {
+	
+	Logger logger = LoggerFactory.getLogger(MobileEnqService.class);
+	Connection connection;
+	String errno = new String();
+	String customerStatus = CacheConfig.frameworkConfigProperties.getProperty(FrameworkConstants.LOOKUP_FILES_PATH);
+	Properties custStatus = PropertyLoader
+			.readPropertyFile(new String(customerStatus + "/CustomerStatus.properties"));
+	
+	public List<String> callMOBEnquiryChild( String refno,String branchno, String tellerno, String mobno, String cifno, int requestedNumberOfRecords,DataSource dataSource,String commonArea) throws InterruptedException, ExecutionException {
+		
+		logger.info("VC------------------------MOB Enquiry Child Service Started WithOut ForkJoinPool------------------------VC "+refno);
+
+		String lacctno = cifno == null ? "00000000000000000" : String.format("%017d", new BigInteger(cifno));
+		
+        int numberOfRecordsToFetch = requestedNumberOfRecords > 0 ? requestedNumberOfRecords : 60;       
+        int index = 0;       
+    	StringBuffer allRecordsBuilder = new StringBuffer();
+   	    String tempFlag = "";
+        try (Connection connection = dataSource.getConnection())
+        {
+        	
+        	/* ===================== DB CONNECTION ACQUIRED ===================== */
+            logger.info(
+                    "DB-CONN-ACQUIRED | Ref={} | Thread={} | ConnHash={}",
+                    refno,
+                    Thread.currentThread().getName(),
+                    System.identityHashCode(connection)
+            );
+                	
+            
+        	  	JVMMOB jvmmob = new JVMMOB();
+            	LsBranchNo  	mobinput1	= new LsBranchNo();
+            	LsTellerNo	    mobinput2	= new LsTellerNo();
+                LsMobNumber 	mobinput3 	= new LsMobNumber();
+                LsCustomerNo    mobinput4	= new LsCustomerNo();
+                LsFunction	    mobinput5	= new LsFunction();
+				
+                LsPanNumber     mobinput6   = new LsPanNumber();
+                LsEmail         mobinput7   = new LsEmail();
+                LsRecordArea    mobinput8   = new LsRecordArea();
+                LsDataOut 	    moboutput1 	= new LsDataOut();
+                LsErrorMsgNo    moboutput2 	= new LsErrorMsgNo();
+                LsLastCust      moboutput3 	= new LsLastCust();
+                LsLastNumCuid	mobcuid		= new LsLastNumCuid();
+                mobinput2.setLsTellerNo(tellerno);
+                mobinput1.setLsBranchNo(String.format("%016d", Integer.parseInt(branchno)));  
+                mobinput3.setLsMobNumber(mobno);
+                mobinput4.setLsCustomerNo(lacctno);
+                mobinput5.setLsFunction("M");
+                mobinput6.setLsPanNumber("");
+                mobinput7.setLsEmail("");
+                mobcuid.setLsLastNumCuid("");
+                mobinput8.setLsRecordArea(commonArea);
+                
+               
+                
+                try (RunUnit run1 = new RunUnit())
+                {
+                run1.Add(jvmmob);
+                
+                /* ===================== COBOL START ===================== */
+                long start = System.currentTimeMillis();
+                logger.info(
+                        "COBOL-START | Ref={} | AsyncThread={} | ConnHash={}",
+                        refno,
+                        Thread.currentThread().getName(),
+                        System.identityHashCode(connection)
+                );
+                
+             // Call the JVMAVBL service
+                run1.Call("JVMMOB", mobinput1.get_Reference(), mobinput2.get_Reference(), mobinput3.get_Reference(),mobinput6.get_Reference(),mobinput7.get_Reference(), mobinput4.get_Reference(),mobinput5.get_Reference(), moboutput1.get_Reference(), moboutput2.get_Reference(), moboutput3.get_Reference(),mobcuid.get_Reference(), mobinput8.get_Reference(),connection );
+                /* ===================== COBOL END ===================== */
+                logger.info(
+                        "COBOL-END | Ref={} | AsyncThread={} | ConnHash={} | TimeMs={}",
+                        refno,
+                        Thread.currentThread().getName(),
+                        System.identityHashCode(connection),
+                        System.currentTimeMillis() - start
+                );
+         
+		} 
+                catch (Exception e) 
+        {
+			logger.info("Error in using RunUnit");
+		}
+          
+            
+                
+              if(numberOfRecordsToFetch!=0)
+              {
+            	  while (index < numberOfRecordsToFetch) {
+                      
+                      String outPutRes = moboutput1.getLsDataOutArray(index);
+                      if(outPutRes==null||outPutRes.trim().isEmpty())
+                      {
+                      	break;
+                      }
+                      String lastThree = outPutRes.substring(77,80);
+                      String custDesc = custStatus.getProperty(lastThree);
+                      custDesc = (custDesc==null) ? " ".repeat(100) : custDesc;
+                      allRecordsBuilder.append(outPutRes.substring(0, 83)+custDesc);
+                      index++;
+                  }
+              }
+              
+               
+            
+        
+       
+        tempFlag = "Y";
+        
+        logger.info("VC------------------------Mobile Enquiry Service no of records fetched : " +index+" ------------------------VC " + refno);
+    } 
+        
+        catch (SQLException e)
+        {
+        	errno = "3293";
+        	tempFlag = "N";
+        } 
+
+        List<String> res = new ArrayList<>();
+        res.add(allRecordsBuilder.toString()); 
+        res.add(String.valueOf(index)); 
+        if("Y".equals(tempFlag))
+        {
+        		res.add("0000");
+        }
+        else
+        {
+        	res.add(errno);
+        }
+
+        logger.info("VC------------------------MOB Enquiry Child Service Ended WithOut ForkJoinPool------------------------VC "+refno);
+
+		
+        return res;
+        
+        
+    }
+}
