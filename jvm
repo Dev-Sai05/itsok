@@ -1,1 +1,308 @@
-Paste Here
+      $ set ilsmartnest
+000100*            SBI Core Banking Project, CBD HYDERABAD             *
+000200*                     Hyderbad , India.                          *
+000300******************************************************************
+000400*                                                                *
+000500*  PROGRAM - JVMMOB.COB                                          *
+000600*                                                                *
+000700******************************************************************
+000800*                 P R O G R A M    H I S T O R Y                 *
+000900*                                                                *
+001000* PROGRAMMER : DATE       : SPR NO :COMMENTS                     *
+001100*----------------------------------------------------------------*
+001200* BALAJI KOLLU   : 02/09/2024 : 24090001 : CUSTOMER SEARCH BY    *
+001300*                                          MOBILE NUMBER         *
+001400*----------------------------------------------------------------*
+001200* BALAJI KOLLU   : 02/12/2024 : 24100230 : CUSTOMER SEARCH BY    *
+001300*                                          PAN NUMBER AND        *
+      *                                            EMAIL ID            *
+001400*----------------------------------------------------------------*      
+001500 IDENTIFICATION DIVISION.
+001600 PROGRAM-ID. JVMMOB.
+001700 AUTHOR. TATA CONSULTANCY SERVICES.
+001800 DATE-WRITTEN.
+001900 ENVIRONMENT DIVISION.
+002000 CONFIGURATION SECTION.
+002100 SOURCE-COMPUTER. VAX.
+002200 OBJECT-COMPUTER. VAX.
+002300 SPECIAL-NAMES.
+002400 CONSOLE IS CONS.
+002500 INPUT-OUTPUT SECTION.
+002600 FILE-CONTROL.
+002700 DATA DIVISION.
+002800 FILE SECTION.
+002900 WORKING-STORAGE SECTION.
+003000 
+003100 01 STARTAREA.
+003200    COPY STRTAREA IN LIBRYMIS.
+003300    03 WA-INPUT-MESSAGE.
+003400       COPY INPUTMSG IN LIBRYMIS.
+003500    03 CI0474-60474-SEARCH REDEFINES WA-INPUT-MESSAGE.
+003600       05 CI0474-60474-IN-FUNCTION         PIC X(01).
+003700       05 CI0474-60474-IN-KEY.             
+003800          07 CI0474-60474-MOB-NUMBER       PIC X(12).
+003900          07 CI0474-60474-PAN-NUMBER       PIC X(20).
+004000          07 CI0474-60474-EMAIL            PIC X(50).
+004100       05 CI0474-60474-OPTION              PIC X(01).
+004200       05 CI0474-60474-NUM                 PIC X(16).
+004300       05 CI0474-60474-NUM-CUID            PIC X(16).
+004400       05 FILLER                           PIC X(866).
+004500                                           
+004600   02 WA-OUTPUT-MESSAGE.                   
+004700     03 WA-OUTPUT-ERR-MSG-NO               PIC 9(04).
+004800     03 WA-OUTPUT-MSG-LENGTH               PIC 9(04).
+004900     03 WA-OUTPUT-MSG.
+005000        COPY OUTPUTMSG IN LIBRYMIS.
+005100 
+005200     03 PR0474-CARD-OUT REDEFINES WA-OUTPUT-MSG.
+005300        05 PR0474-LAST-DISPLAY-CIF         PIC 9(16).
+005400        05 PR0474-LAST-DISPLAY-CIF-CUID    PIC 9(16).
+005500        05 DATA-VALUES-OUT.
+005600           07 PR0474-DATA-VALUES-OUT OCCURS 999 TIMES.
+005700              09 PR0474-CIF-ID             PIC X(17).
+005800              09 PR0474-NAME               PIC X(40).
+005900              09 PR0474-BRANCH             PIC X(05).
+006000              09 PR0474-LINK-STATUS        PIC X(15).
+006100              09 PR0474-CUST-STATUS        PIC X(03).
+006200              09 PR0474-CIRCLE-CODE        PIC X(03).
+006300        05 FILLER                          PIC X(121).
+006400     03 PR0471-CARD-OUT.
+006500        05 PR0471-DATA-VALUES-OUT OCCURS 999 TIMES.
+006600           07 PR0471-CIF-ID                PIC X(17).
+006700           07 PR0471-NAME                  PIC X(40).
+006800           07 PR0471-BRANCH                PIC X(05).
+006900           07 PR0471-LINK-STATUS           PIC X(15).
+007000           07 PR0471-CUST-STATUS           PIC X(03).
+007100           07 PR0471-CIRCLE-CODE           PIC X(03).
+007200        05  FILLER                         PIC X(121).
+007300        
+007400 01 WA-PASSALONG.
+007500    COPY PASALONG      IN LIBRYMIS.
+007600 01 LS-LS-ENVCA-REC-AREA
+007700    COPY UTENVCA       IN LIBRYMIS.
+          COPY DBIOCALL      IN LIBRYMIS.
+007800    COPY UT8500CA      IN LIBRYMIS.
+007900    COPY DBIOMODCA     IN LIBRYMIS.
+008000    03  FILLER        PIC X(300).
+008100    COPY DBIOORAST     IN LIBRYMIS.
+008200    COPY UT0020CA      IN LIBRYMIS.
+008300    COPY UT8500FU      IN LIBRYMIS.
+008400    COPY DBIOMODNAME   IN LIBRYMIS.
+008500    COPY UT0030CA      IN LIBRYMIS.
+        01 LS-WA-CALL-CODE pic x(01).
+       01 LS-WA-OPT-CODE  pic x(01) VALUE "".
+       EXEC SQL INCLUDE SQLCA END-EXEC.
+       01 WA-SQLCODE   PIC S9(9).
+008600 01 WA-FIRST-TIME-FLAG          pic x(01) VALUE "Y".
+008700 LINKAGE SECTION.
+000000********************START OF IR 24100230**********************
+008900*01 LS-MOB-BRANCH-NO                     PIC X(16).
+009000*01 LS-MOB-TELLER-NO                     PIC X(16).
+       01 LS-REF-NO                        PIC X(25).
+008900 01 LS-BRANCH-NO                     PIC X(16).
+009000 01 LS-TELLER-NO                     PIC X(16).
+000000*******************END OF IR 24100230*************************
+009100 01 LS-MOB-NUMBER                        PIC X(12).
+000000********************START OF IR 24100230**********************
+000000 01 LS-PAN-NUMBER                    PIC X(20).
+000000 01 LS-EMAIL                         PIC X(50).	   
+009200*01 LS-MOB-CUSTOMER-NO                   PIC X(16).
+009300*01 LS-MOB-FUNCTION                      PIC X(01)
+009400*01 LS-MOB-DATA-OUT                      PIC X(830).
+009500*01 LS-MOB-ERROR-MSG-NO                  PIC X(04).
+009600*01 LS-MOB-LAST-CUST                     PIC X(16).
+009200 01 LS-CUSTOMER-NO                   PIC X(16).
+009300 01 LS-FUNCTION                      PIC X(01)
+009400*01 LS-DATA-OUT                      PIC X(830).
+       01 LS-DATA-OUT.
+          03 LS-DATA-OUT-ARRAY      OCCURS 999 TIMES.
+             05 LS-DATA-OUT-VALUE          PIC X(83).
+009500 01 LS-ERROR-MSG-NO                  PIC X(04).
+009600 01 LS-LAST-CUST                     PIC X(16).
+       01 LS-LAST-NUM-CUID                 PIC X(16).
+       01 LS-RECORD-AREA.
+        COPY UTENVCA         IN LIBRYMIS.
+005500 01 LS-CONNECTION-STRING            type java.sql.Connection.       
+000000*******************END OF IR 24100230*************************
+009700 
+000000********************START OF IR 24100230*********************
+009800*PROCEDURE DIVISION USING LS-MOB-BRANCH-NO
+009900*                         LS-MOB-TELLER-NO
+009800 PROCEDURE DIVISION USING LS-REF-NO
+                                LS-BRANCH-NO
+009900                          LS-TELLER-NO 
+000000*******************END OF IR 24100230*************************   
+010000                          LS-MOB-NUMBER
+000000********************START OF IR 24100230********************* 
+010100*                         LS-MOB-CUSTOMER-NO
+010200*                         LS-MOB-FUNCTION
+010300*                         LS-MOB-DATA-OUT
+010400*                         LS-MOB-ERROR-MSG-NO
+010500*                         LS-MOB-LAST-CUST. 
+010100                          LS-PAN-NUMBER   
+010200                          LS-EMAIL        
+010300                          LS-CUSTOMER-NO  
+010400                          LS-FUNCTION     
+010500                          LS-DATA-OUT     
+010600                          LS-ERROR-MSG-NO 
+                                LS-LAST-CUST
+                                LS-LAST-NUM-CUID
+                                LS-RECORD-AREA
+                                by value LS-CONNECTION-STRING.
+000000*******************END OF IR 24100230*************************
+010600 
+010700 A000-MAIN-PARA.
+          
+           PERFORM A011-ENV          THRU A011-EXIT
+           PERFORM A010-DBCONNECT   THRU A010-EXIT
+010800     PERFORM A001-INIT-PARA           THRU A001-EXIT
+010900     PERFORM A002-CALL-CI0474         THRU A002-EXIT
+011000     PERFORM A003-SEND-RESPONSE       THRU A003-EXIT
+      *    EXEC SQL
+      *        DISCONNECT conn
+      *    END-EXEC
+      *    DISPLAY SQLCODE
+011100     .
+011200 A000-EXIT.
+011300 EXIT.
+011400 EXIT PROGRAM.
+006800 A010-DBCONNECT.
+             IF WA-FIRST-TIME-FLAG = "Y"
+              EXEC SQL 
+017700             BIND CONNECTION conn TO :LS-CONNECTION-STRING
+017800         END-EXEC
+               DISPLAY "CONNECTION STRING :" LS-CONNECTION-STRING .
+017900         MOVE SQLCODE TO WA-SQLCODE
+018000         IF WA-SQLCODE = ZEROS
+018100             SET UT8500CA-NORMAL-DISPLAY TO TRUE
+018200             MOVE UT8500CA-FUNC-NORMAL-DISPLAY
+018300                               TO UT8500CA-CALL-CODE
+018400             MOVE SPACES       TO UT8500CA-INPUT-MSG
+018500             STRING "JVMMOB(A003): BIND SUCCESSFUL, SQLCODE=" WA-SQLCODE
+018600                     DELIMITED BY SIZE INTO UT8500CA-INPUT-MSG
+018700             MOVE "N" TO UT8500CA-RESPONSE-REQD-FLAG
+018800             CALL "UT8500" USING
+018900                                 UT8500CA-AREA
+                   move 'N' to  WA-FIRST-TIME-FLAG
+019000         ELSE
+019100             SET UT8500CA-NORMAL-DISPLAY TO TRUE
+019200             MOVE UT8500CA-FUNC-NORMAL-DISPLAY
+019300                          TO UT8500CA-CALL-CODE
+019400             MOVE SPACES       TO UT8500CA-INPUT-MSG
+019500             STRING "JVMMOB(A003): BIND FAILURE, SQLCODE=" WA-SQLCODE
+019600                     DELIMITED BY SIZE INTO UT8500CA-INPUT-MSG
+019700             MOVE "N" TO UT8500CA-RESPONSE-REQD-FLAG
+019800              CALL "UT8500" USING
+019900                                  UT8500CA-AREA
+020000              MOVE 155      TO WA-OUTPUT-ERR-MSG-NO
+020100         END-IF.
+            DISPLAY "REFERENCE NUMBER :" LS-REF-NO.
+           
+       A010-EXIT.
+           EXIT. 
+       A011-ENV.
+           INITIALIZE LS-WA-CALL-CODE
+CHANDU                LS-WA-OPT-CODE
+CHANDU                LS-LS-ENVCA-REC-AREA
+CHANDU                WA-SQLCODE.
+          MOVE "S" TO LS-WA-CALL-CODE
+          MOVE  LS-RECORD-AREA TO LS-LS-ENVCA-REC-AREA
+           CALL "JVMUTENV" USING LS-WA-CALL-CODE
+001800                          LS-WA-OPT-CODE
+002000                          LS-LS-ENVCA-REC-AREA. 
+000000*
+038300*    CALL "DBIO"      USING DBIO-CALL-PARAM
+038400*                           DBIO-CALL-SYS-AREA
+038500*                           DBIO-CALL-KEY-AREA
+038600*                           DBIO-CALL-STATUS.
+       A011-EXIT.
+           EXIT.            
+011500 
+011600 A001-INIT-PARA.
+011700     
+011800     INITIALIZE STARTAREA
+011900                WA-PASSALONG
+012000                LS-LS-ENVCA-REC-AREA
+023700                WA-PASSALONG.
+012100 MOVE '003'                TO STRT-AREA-SOC-NO.
+       MOVE '60474'              TO STRT-AREA-TRN-NO.
+000000********************START OF IR 24100230********************* 
+012300*    MOVE LS-MOB-BRANCH-NO     TO STRT-AREA-BRANCH
+012400*    MOVE LS-MOB-TELLER-NO     TO STRT-AREA-TELL-NO.	   
+       MOVE LS-BRANCH-NO         TO STRT-AREA-BRANCH.
+       MOVE LS-TELLER-NO         TO STRT-AREA-TELL-NO.
+000000*******************END OF IR 24100230*************************	   
+       MOVE 01                   TO STRT-AREA-TELLER-LANG.
+       MOVE LS-MOB-NUMBER        TO CI0474-60474-MOB-NUMBER.
+000000********************START OF IR 24100230*********************	   
+       MOVE LS-PAN-NUMBER        TO CI0474-60474-PAN-NUMBER.
+       MOVE LS-EMAIL             TO CI0474-60474-EMAIL.
+       MOVE LS-FUNCTION          TO CI0474-60474-IN-FUNCTION
+012700*    MOVE LS-MOB-FUNCTION      TO CI0474-60474-IN-FUNCTION
+000000*******************END OF IR 24100230*************************
+       MOVE 'Y'                  TO STRT-AREA-OK-MSG-CNTL-FLAG.       
+012900
+000000********************START OF IR 24100230*********************	
+013000*    IF LS-MOB-CUSTOMER-NO NOT = ZEROS AND SPACES
+013100*       MOVE LS-MOB-CUSTOMER-NO TO CI0474-60474-NUM
+012900
+013000     IF LS-CUSTOMER-NO NOT = ZEROS AND SPACES
+013100        MOVE LS-CUSTOMER-NO TO CI0474-60474-NUM
+              END-IF .
+                                     
+013000    IF LS-LAST-NUM-CUID NOT = ZEROS AND SPACES
+           
+013100        MOVE LS-LAST-NUM-CUID TO CI0474-60474-NUM-CUID
+000000*******************END OF IR 24100230*************************
+013200     END-IF.
+013300     
+013400 A001-EXIT.
+013500 EXIT.
+013600 
+013700 A002-CALL-CI0474.
+013800 
+013900     CALL "CI0474"          USING STARTAREA
+014000                                  WA-PASSALONG.
+014100     
+014200 A002-EXIT.
+014300 EXIT.
+014400 
+014500 A003-SEND-RESPONSE.
+014600
+014700     MOVE 9                    TO STRT-AREA-OK-MSG-CNTL-FLAG
+014800     CALL "JVMFT01"         USING STARTAREA.
+000000********************START OF IR 24100230*********************
+014900*    MOVE DATA-VALUES-OUT      TO LS-MOB-DATA-OUT.
+014900     MOVE DATA-VALUES-OUT      TO LS-DATA-OUT.
+000000*******************END OF IR 24100230*************************
+015000     
+015100     IF PR0474-LAST-DISPLAY-CIF  NOT = ZEROS 
+015200        MOVE PR0474-LAST-DISPLAY-CIF
+000000********************START OF IR 24100230*********************
+015300*                              TO LS-MOB-LAST-CUST
+015300                               TO LS-LAST-CUST
+             END-IF              
+              IF PR0474-LAST-DISPLAY-CIF-CUID NOT = ZEROS
+                 MOVE PR0474-LAST-DISPLAY-CIF-CUID 
+                                           TO LS-LAST-NUM-CUID
+
+000000*******************END OF IR 24100230*************************
+015400     END-IF
+015500     
+015600     IF WA-OUTPUT-ERR-MSG-NO = 998
+000000********************START OF IR 24100230*********************
+015700*        MOVE ZEROS            TO  LS-MOB-ERROR-MSG-NO
+015700         MOVE ZEROS            TO  LS-ERROR-MSG-NO
+000000*******************END OF IR 24100230*************************
+015800     ELSE
+015900         MOVE WA-OUTPUT-ERR-MSG-NO 
+000000********************START OF IR 24100230*********************
+016000*                              TO  LS-MOB-ERROR-MSG-NO
+016000                               TO  LS-ERROR-MSG-NO
+000000*******************END OF IR 24100230*************************
+016100     END-IF.
+016200     
+016300 A003-EXIT.
+016400 EXIT.
+
+       Paste Here
