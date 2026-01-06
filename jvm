@@ -304,5 +304,1824 @@ CHANDU                WA-SQLCODE.
 016200     
 016300 A003-EXIT.
 016400 EXIT.
+==============================================================================================================================================================================
 
-       Paste Here
+
+T73841******************************************************************
+T73841******************************************************************
+T73841*   (C) COPYRIGHT FINANCIAL NETWORK SERVICES PTY LTD. 1982       *
+T73841*       ALL RIGHTS RESERVED. NO PART OF THIS PROGRAM MAY         *
+T73841*       BE PHOTOCOPIED, REPRODUCED, TRANSLATED TO ANOTHER        *
+T73841*       PROGRAM LANGUAGE OR USED IN ANY WAY WITHOUT THE          *
+T73841*       PRIOR WRITTEN CONSENT OF FINANCIAL NETWORK SERVICES      *
+T73841*       OR THE AUTHORISED SELLING AGENT.                         *
+T73841*----------------------------------------------------------------*
+T73841*             FINANCIAL NETWORK SERVICES PTY LTD.                *
+T73841*                 UNIT 6/70 ROSEHILL STREET                      *
+T73841*                     REDFERN, AUSTRALIA                         *
+T73841*                           2016.                                *
+T73841*                      TEL. 02-3181088                           *
+T73841*                      FAX. 02-3190008                           *
+T73841******************************************************************
+T73841******************************************************************
+T73841***                                                            ***
+T73841***  SYSTEM : CIF ENQUIRY VIA MOBILE OR PAN NUMBER             ***
+T73841***                                                            ***
+T73841***  MODULE : CIF                                              ***
+T73841***                                                            ***
+T73841***  PROGRAM: CI0474                                           ***
+T73841***                                                            ***
+T73841***  PURPOSE: THIS PROGRAM IS USED TO PERFORM AN ENQUIRY ON A  ***
+T73841***           CIF THROUGH ITS MOBILE NUMBER,PAN NUMBER OR      ***
+T73841***           EMAIL-ID
+T73841***           TRANSACTION 60474.                               ***
+T73841***                                                            ***
+T73841******************************************************************
+T73841*
+T73841*
+T73841*                 P R O G R A M    H I S T O R Y
+T73841*  PROGRAMMERS INITIALS TOGETHER WITH THE "SPR" NUMBER MUST BE
+T73841*  REFLECTED IN COLUMNS 73-80 OF EVERY LINE/S CHANGED OR ADDED.
+T73841*
+T73841* PROGRAMMER  : DATE     : SPR NO: COMMENTS
+T73841*-----------------------------------------------------------------
+T73841* TUSHAR      : 10102013 : 73841 : CIF SEARCH USING MOBILE AND
+T73841* NADKARNI    :                  : PAN NUMBER.
+UTMPRD*----------------------------------------------------------------
+UTMPRD* ANUSHA     :  18062018 : 18030123 :  TO ENQUIRE CIF NUMBER USING
+UTMPRD*                                      EMAIL-ID
+UTMPRD*----------------------------------------------------------------
+PPPPPP* PHANEENDRA  : 29/05/2020 : 20100144(19120118) : TO INCREASE MESS        TH        .
+PPPPPP* SAI GUDAPATI
+PPPPPP******************************************************************
+CACACA*-----------------------------------------------------------------
+CACACA* CHAITANYA : 02122021 : 21050018 : CIF SEACH(WITH CUSTOMER STATUS
+CACACA* AJABE                             USING MOBILE, PAN AND  EMAIL.
+CACACA*-----------------------------------------------------------------
+RRRRRR* RAHUL     : 13/09/2022 : 22010027 : CIF SEARCH(WITH CIRCLE CODE)
+RRRRRR* KHADATARE
+RRRRRR*-------------------------------------------------------
+000000* BALAJI    : 19/10/2024  : 24090001 : CHANGES FOR CBS MICROSERVICE
+000000* KOLLU                              : TO ADD SERVICES FLAG
+000000*----------------------------------------------------------------
+T73841/
+T73841 IDENTIFICATION DIVISION.
+T73841 PROGRAM-ID. CI0474.
+T73841 AUTHOR.     TATA CONSULTANCY SERVICES.
+T73841* DESC.      CIF ENQUIRY VIA MOBILE OR PAN NUMBER.
+T73841 INSTALLATION. FINANCIAL NETWORK SERVICES PTY LTD.
+T73841 DATE-WRITTEN.
+T73841 DATE-COMPILED.
+T73841/
+T73841 ENVIRONMENT DIVISION.
+T73841 CONFIGURATION SECTION.
+T73841 SOURCE-COMPUTER. VAX.
+T73841 OBJECT-COMPUTER. VAX.
+T73841 SPECIAL-NAMES.
+T73841        CONSOLE IS CONS.
+T73841 INPUT-OUTPUT SECTION.
+T73841 FILE-CONTROL.
+T73841 DATA DIVISION.
+T73841 FILE SECTION.
+T73841 WORKING-STORAGE SECTION.
+T73841 01  UTBRHMRA-CALL-AREA.
+T73841     COPY UTBRHMRA IN LIBRYMIS
+T73841          REPLACING ==(UTBRHMRA)== BY ==UTBRHMRA==.
+AAAAAA*-------START OF IR 18030123--------------*
+SUMITS 01 WS-UTSMART-RECORD.
+BHAGYA     COPY UTSMARTCPBK IN LIBRYMIS
+AFGDHH     REPLACING ==(TEMP)== BY ==WS==.
+AAAAAA*--------END OF IR 18030123-----------------*
+T73841     COPY STRTREST IN LIBRYMIS.
+T73841     COPY UT0152CA    IN LIBRYMIS.
+T73841     COPY INSPARM     IN LIBRYMIS.
+T73841     COPY UT8500CA    IN LIBRYMIS.
+T73841     COPY UT8500FU    IN LIBRYMIS.
+T73841     COPY UT0020CA    IN LIBRYMIS.
+T73841     COPY UT0030CA    IN LIBRYMIS.
+T73841     COPY DBIOCALL    IN LIBRYMIS.
+T73841     COPY DBIOMODCA   IN LIBRYMIS.
+T73841 03  FILLER                              PIC X(12).
+T73841     COPY DBIOORAST   IN LIBRYMIS.
+T73841     COPY DBIOMODNAME IN LIBRYMIS.
+AAAAAA*------------START OF IR 21050018------------------*
+AAAAAA 01  CUSM-RECORD-AREA.
+AAAAAA     COPY CUSMMAST IN LIBRYMIS.
+AAAAAA*--------------END OF IR 21050018------------------*
+T73841 01  WA-NUMBER1                          PIC X(12).
+T73841 01  WA-NUMBER2                          PIC X(20).
+001010*------------START OF IR 18030123------------------*
+T73841 01  WA-NUMBER3                          PIC X(50).
+001030*------------END  OF IR 18030123------------------*
+000000*-----------------START OF IR 24090001------------*
+       01 WA-SERVICES-FLAG                     PIC X(01) VALUE "N".      
+004900 01 LS-LS-ENVCA-REC-AREA
+005000    COPY UTENVCA    IN LIBRYMIS.
+000000*----------------END OF IR 24090001---------------*
+T73841 01  WA-IDX                              PIC 9(2)  VALUE 1.
+T73841 01  WA-IDY                              PIC 9(2)  VALUE 1.
+T73841 01  WA-LENGTH                           PIC 9(03) VALUE ZEROS.
+T73841 01 PR0474-DATA-ARRAY.
+T73841  03 PR0474-DATA-ARRY-OUT OCCURS 999 TIMES.
+T73841   05 PR0474-CIF-ID                      PIC X(17).
+T73841   05 PR0474-CIF-NAME                    PIC X(40).
+T73841   05 PR0474-CIF-BRANCH                  PIC X(05).
+T73841   05 PR0474-LINK-STATUS                 PIC X(15).
+CA0000*-------------START OF IR 21050018-----------------*
+CA0000   05 PR0474-CUST-STATUS                 PIC X(03).
+CA0000*-------------END OF IR 21050018-------------------*
+RRRRRR************START OF IR 22010027********************
+RRRRRR   05 PR0474-CIRCLE-CODE                 PIC X(03).
+RRRRRR************END OF IR 22010027**********************
+
+T73841 LINKAGE SECTION.
+T73841 01 STARTAREA.
+T73841     COPY STRTAREA IN LIBRYMIS.
+PPPPPP*****************START OF IR 20100144(19120118)*******************        **
+T73841*     03 WA-INPUT-MESSAGE                 PIC X(982).
+PPPPPP     03 WA-INPUT-MESSAGE.
+PPPPPP           COPY INPUTMSG IN LIBRYMIS.
+PPPPPP*****************END OF IR 20100144(19120118)*********************        **
+T73841     03 CI0474-60474-SEARCH REDEFINES WA-INPUT-MESSAGE.
+T73841        05 CI0474-60474-IN-FUNCTION      PIC X(01).
+T73841        05 CI0474-60474-IN-KEY.
+T73841           07 CI0474-60474-MOB-NUMBER    PIC X(12).
+T73841           07 CI0474-60474-PAN-NUMBER    PIC X(20).
+001320*------------START OF IR 18030123------------------*
+T73841           07 CI0474-60474-EMAIL         PIC X(50).
+001340*------------END  OF IR 18030123------------------*
+T73841        05 CI0474-60474-OPTION           PIC X(01).
+T73841        05 CI0474-60474-NUM              PIC X(16).
+RRRRRR************START OF IR 22010027********************
+T73841*        05 CI0474-60474-NUM-MICM         PIC X(16).
+RRRRRR        05 CI0474-60474-NUM-CUID         PIC X(16).
+RRRRRR**************END OF IR 22010027********************
+001410*------------START OF IR 18030123------------------*
+T73841*       05 FILLER                        PIC X(916).
+T73841        05 FILLER                        PIC X(866).
+PPPPPP*****************START OF IR 20100144(19120118)*******************        **
+PPPPPP*       05 FILLER.
+PPPPPP*              COPY INPUTFLR IN LIBRYMIS.
+PPPPPP*****************END OF IR 20100144(19120118)*********************        **
+001480*------------END  OF IR 18030123------------------*
+T73841   02  WA-OUTPUT-MESSAGE.
+T73841     03  WA-OUTPUT-ERR-MSG-NO            PIC 9(04).
+T73841     03  WA-OUTPUT-MSG-LENGTH            PIC 9(04).
+PPPPPP*****************START OF IR 20100144(19120118)*******************        **
+T73841*     03  WA-OUTPUT-MSG                   PIC X(983).
+T73841     03  WA-OUTPUT-MSG.
+PPPPPP           COPY OUTPUTMSG IN LIBRYMIS.
+PPPPPP*****************END OF IR 20100144(19120118)*********************        **
+T73841     03 PR0474-CARD-OUT REDEFINES WA-OUTPUT-MSG.
+T73841        05 PR0474-LAST-DISPLAY-CIF       PIC 9(16).
+RRRRRR*****************START OF IR 22010027*****************************
+T73841*        05 PR0474-LAST-DISPLAY-CIF-MICM  PIC 9(16).
+RRRRRR        05 PR0474-LAST-DISPLAY-CIF-CUID  PIC 9(16).
+RRRRRR*****************END OF IR 22010027******************************
+T73841        05 PR0474-DATA-VALUES-OUT OCCURS 999 TIMES.
+T73841           07 PR0474-CIF-ID              PIC X(17).
+T73841           07 PR0474-NAME                PIC X(40).
+T73841           07 PR0474-BRANCH              PIC X(05).
+T73841           07 PR0474-LINK-STATUS         PIC X(15).
+CA0000*------------START OF IR 21050018------------------*
+CA0000           07 PR0474-CUST-STATUS         PIC X(03).
+T73841*        05 FILLER                        PIC X(181).
+RRRRRR*------------START OF IR 22010027--------------------*
+T73841*        05 FILLER                        PIC X(151).
+RRRRRR           07 PR0474-CIRCLE-CODE         PIC X(03).
+RRRRRR        05  FILLER                       PIC X(121).
+RRRRRR*-----------END OF IR 22010027-----------------------*
+CA0000*--------------END OF IR 21050018------------------*
+PPPPPP*****************START OF IR 20100144(19120118)*******************        **
+PPPPPP*       05 FILLER.
+PPPPPP*              COPY OUTPUTFLR IN LIBRYMIS.
+PPPPPP*****************END OF IR 20100144(19120118)*********************        **
+T73841     03 WA-OUTPUT-60474-OUT-R  REDEFINES WA-OUTPUT-MSG.
+T73841        05  CI0474-OUTPUT-DATA-SET      PIC X(4).
+T73841        05  CI0474-OUTPUT-STATUS        PIC X(4).
+T73841        05  FILLER                      PIC X(975).
+PPPPPP*****************START OF IR 20100144(19120118)*******************        **
+PPPPPP*       05  FILLER.
+PPPPPP*              COPY OUTPUTFLR IN LIBRYMIS.
+PPPPPP*****************END OF IR 20100144(19120118)*********************        **
+T73841 01 WA-PASS-ALONG.
+T73841    COPY PASALONG IN LIBRYMIS.
+
+T73841 PROCEDURE DIVISION USING STARTAREA
+T73841                          WA-PASS-ALONG.
+T73841
+T73841 A000-MAIN.
+T73841   INITIALIZE WA-OUTPUT-ERR-MSG-NO
+T73841              WA-IDY
+T73841              WA-LENGTH
+T73841              WA-NUMBER1
+002000*------------START OF IR 18030123------------------*
+002010              WA-NUMBER3
+002020*------------END  OF IR 18030123------------------*
+T73841              WA-NUMBER2.
+                    
+         INITIALIZE PR0474-DATA-ARRAY.
+T73841   MOVE 1                       TO WA-IDX.
+T73841   MOVE ZEROES                  TO ST-STATUS-LEVEL-1.
+T73841   MOVE CI0474-60474-MOB-NUMBER TO WA-NUMBER1.
+T73841   MOVE CI0474-60474-PAN-NUMBER TO WA-NUMBER2.
+002080*------------START OF IR 18030123------------------*
+002090   MOVE CI0474-60474-EMAIL      TO WA-NUMBER3.
+002100*------------END  OF IR 18030123------------------*
+000000*--------------------START OF IR 24090001----------*
+015100     CALL "UTSERV" USING WA-SERVICES-FLAG.
+000000*--------------------END OF IR 24090001-------------*    
+T73841   IF CI0474-60474-IN-FUNCTION = "M" AND (WA-NUMBER1 = ZEROES
+T73841      OR SPACES)
+T73841      MOVE 899                     TO WA-OUTPUT-ERR-MSG-NO
+T73841      MOVE "INVALID MOBILE NUMBER" TO WA-OUTPUT-MSG
+T73841      MOVE 01                      TO ST-STATUS-LEVEL-1
+T73841      GO TO A099-MAIN-EXIT
+T73841   ELSE
+T73841      IF CI0474-60474-IN-FUNCTION = "P" AND (WA-NUMBER2 = '0'
+T73841             OR SPACES)
+T73841         MOVE 899                     TO WA-OUTPUT-ERR-MSG-NO
+T73841         MOVE "INVALID PAN NUMBER"    TO WA-OUTPUT-MSG
+T73841         MOVE 01                      TO ST-STATUS-LEVEL-1
+T73841         GO TO A099-MAIN-EXIT
+002240*------------START OF IR 18030123------------------*
+T73841   ELSE
+T73841      IF CI0474-60474-IN-FUNCTION = "E" AND (WA-NUMBER3 = '0'
+T73841             OR SPACES)
+T73841         MOVE 899                     TO WA-OUTPUT-ERR-MSG-NO
+PPPPPP         MOVE 5  TO WS-UTSMART-SEVERE-MESSAGE
+AMITKS         MOVE SPACES TO UT8500CA-INPUT-MSG
+AMITKS         STRING "CI0474(A100):INVALID EMAIL ADDRESS"
+AMITKS         DELIMITED BY SIZE INTO UT8500CA-INPUT-MSG
+PPPPPP         PERFORM A700-UTSMRT  THRU A799-SMRT-EXIT
+T73841         MOVE 01                      TO ST-STATUS-LEVEL-1
+T73841         GO TO A099-MAIN-EXIT
+002360*------------END  OF IR 18030123------------------*
+T73841      ELSE
+T73841         PERFORM A100-FETCH-CIF THRU A109-FETCH-EXIT
+T73841         IF ST-STATUS-LEVEL-1 = 01
+T73841            GO TO A099-MAIN-EXIT
+T73841         END-IF
+T73841         PERFORM A000-DISPLAY-LIST THRU A000-DISPLAY-LIST-EXIT
+002430*------------START OF IR 18030123------------------*
+T73841      END-IF
+002450*------------END  OF IR 18030123------------------*
+T73841   END-IF
+T73841   END-IF.
+T73841
+T73841 A099-MAIN-EXIT.
+T73841   PERFORM E200-SEND THRU E299-EXIT.
+T73841   EXIT.
+T73841 EXIT PROGRAM.
+
+T73841 E200-SEND.
+T73841  CALL "FT0000" USING
+T73841                     STARTAREA.
+T73841 E299-EXIT.
+T73841  EXIT.
+AAAAAA*--------------START OF IR 18030123-----------------*
+PPPPPP A700-UTSMRT.
+AMITKS             MOVE 3  TO WS-UTSMART-CALL-CODE
+AMITKS             CALL "UTSMART" USING WS-UTSMART-RECORD
+AMITKS             MOVE UT8500CA-FUNC-NORMAL-DISPLAY
+AMITKS              TO UT8500CA-CALL-CODE
+AMITKS             MOVE "N" TO UT8500CA-RESPONSE-REQD-FLAG
+AMITKS             CALL "UT8500"   USING      UT8500CA-AREA.
+PPPPPP A799-SMRT-EXIT.
+PPPPPP  EXIT.
+AAAAAA*----------------END OF IR 18030123-----------------*
+000000*-----------------START OF IR 24090001------------**
+T73841 A000-DISPLAY-LIST.
+T73841    IF WA-IDX > 1
+             IF WA-SERVICES-FLAG = "Y"
+               IF WA-OUTPUT-ERR-MSG-NO = ZEROS 
+T73841              MOVE 2 TO STRT-AREA-IEXEC-CNTL
+T73841             MOVE 998 TO WA-OUTPUT-ERR-MSG-NO
+T73841             PERFORM E200-SEND THRU E299-EXIT
+               ELSE
+T73841             PERFORM E200-SEND THRU E299-EXIT                
+T73841         END-IF
+             ELSE
+T73841              MOVE 2 TO STRT-AREA-IEXEC-CNTL
+T73841             MOVE 998 TO WA-OUTPUT-ERR-MSG-NO
+T73841             PERFORM E200-SEND THRU E299-EXIT                 
+            END-IF.
+000000*----------------END OF IR 24090001---------------*           
+T73841
+T73841 A000-DISPLAY-LIST-EXIT.
+T73841    EXIT.
+
+T73841 A100-FETCH-CIF.
+T73841 IF CI0474-60474-OPTION = "S"
+T73841      MOVE ZEROES TO CI0474-60474-NUM
+RRRRRR*****************START OF IR 22010027***************
+T73841*      MOVE ZEROES TO CI0474-60474-NUM-MICM
+RRRRRR      MOVE ZEROES TO CI0474-60474-NUM-CUID
+RRRRRR*****************END OF IR 22010027***************
+T73841 END-IF.
+T73841  CALL "UTMPRD"  USING
+T73841                 WA-NUMBER1
+T73841                 WA-NUMBER2
+002910*------------START OF IR 18030123------------------*
+T73841                 WA-NUMBER3
+002930*------------END  OF IR 18030123------------------*
+T73841                 CI0474-60474-NUM
+RRRRRR*****************START OF IR 22010027***************
+T73841*                 CI0474-60474-NUM-MICM
+RRRRRR                 CI0474-60474-NUM-CUID
+RRRRRR*****************END OF IR 22010027***************
+T73841                 CI0474-60474-OPTION
+T73841                 CI0474-60474-IN-FUNCTION
+T73841                 PR0474-LAST-DISPLAY-CIF
+RRRRRR*****************START OF IR 22010027***************
+T73841*                 PR0474-LAST-DISPLAY-CIF-MICM
+RRRRRR                 PR0474-LAST-DISPLAY-CIF-CUID
+RRRRRR*****************END OF IR 22010027***************
+T73841                 PR0474-DATA-ARRAY
+T73841                 WA-OUTPUT-ERR-MSG-NO
+T73841                 WA-LENGTH
+T73841                 WA-IDX
+T73841                 STARTAREA.
+T73841  MOVE 1 TO WA-IDY
+T73841  PERFORM UNTIL WA-IDY >  WA-IDX
+T73841  MOVE PR0474-DATA-ARRY-OUT (WA-IDY)
+T73841       TO  PR0474-DATA-VALUES-OUT (WA-IDY)
+        
+T73841  ADD 1 TO WA-IDY
+T73841  END-PERFORM.
+T73841  ADD 32 TO WA-LENGTH.
+T73841  ADD WA-LENGTH TO WA-OUTPUT-MSG-LENGTH.
+T73841
+T73841 A109-FETCH-EXIT.
+T73841  EXIT.
+
+
+=====================================================================================================================================================================================
+
+
+000000$ SET ilsmartnest
+000000$ SET ILSMARTRESTRICT
+UTMPRD******************************************************************
+UTMPRD***                                                            ***
+UTMPRD***                                                            ***
+UTMPRD***                                                            ***
+UTMPRD***                                                            ***
+UTMPRD***  MODULE:-    CIF                                           ***
+UTMPRD***              FOR CIF ENQUIRY BY MOBILE OR PAN NUMBER       ***
+UTMPRD***                                                            ***
+UTMPRD***                                                            ***
+UTMPRD***                                                            ***
+UTMPRD******************************************************************
+UTMPRD*
+UTMPRD*
+UTMPRD*                 P R O G R A M    H I S T O R Y
+UTMPRD*  PROGRAMMERS INITIALS TOGETHER WITH THE "SPR" NUMBER MUST BE
+UTMPRD*  REFLECTED IN COLUMNS 73-80 OF EVERY LINE/S CHANGED OR ADDED.
+UTMPRD*
+UTMPRD* PROGRAMMER TUSHAR : DATE :SPR NO :COMMENTS
+UTMPRD*-----------------------------------------------------------------
+UTMPRD* TUSHAR    : 16102013 :  73841   : NEW DEVELPOMENT FOR CIF ENQUIR    
+UTMPRD* NADKARNI                          BY PAN AND MOBILE NUMBER
+UTMPRD*----------------------------------------------------------------
+UTMPRD*-----------------------------------------------------------------
+UTMPRD* ANIMESH    : 15122017 : 17120054   : TO MAKE 60474 TRANSACTION N    
+UTMPRD*                                      ENABLE.
+UTMPRD*----------------------------------------------------------------
+UTMPRD*----------------------------------------------------------------
+UTMPRD* ANUSHA     :  18062018 : 18030123 :  TO ENQUIRE CIF NUMBER USING
+UTMPRD*                                      EMAIL-ID
+UTMPRD*----------------------------------------------------------------
+PPPPPP* PHANEENDRA SAI : 29012019 : 18100095 : TO CHANGE THE KEY OF CMOB
+PPPPPP* GUDAPATI                               TABLE.
+PPPPPP*-----------------------------------------------------------------
+PPPPPP* Swapnil patil :29/06/2020 : 20100144(19120118) : TO INCREASE MES    
+PPPPPP*                                      : LENGTH TO 6000.
+PPPPPP*-----------------------------------------------------------------
+CACACA*-----------------------------------------------------------------
+CACACA* CHAITANYA     : 02122021 : 21050018 : TO FETCH CUSTOMER STATUS 
+CACACA* AJABE                                 FOR 60474 SCREEN
+CACACA*-----------------------------------------------------------------
+RRRRRR* RAHUL    :16092022 : 22010027 : READ CUID INSTENT OF MICM AND
+RRRRRR* KHADATARE                      FETCH CIRCLE CODE FOR 60474 SCREE 
+RRRRRR*-----------------------------------------------------------------
+CACACA*-----------------------------------------------------------------
+RRRRRR* SAIKIRAN :08112023 : 23110048 :CODE CHANGES TO BE DONE UNDER THE      
+RRRRRR* / MANITHEJA                  STOPED THE REPEATED RECORDS
+RRRRRR*-----------------------------------------------------------------
+000000* BALAJI    : 02/12/2024  : 24100230 : CHANGES FOR CBS MICROSERVICE
+000000* KOLLU                              : TO ADD SERVICES FLAG
+000000*----------------------------------------------------------------      
+UTMPRD  IDENTIFICATION DIVISION.
+UTMPRD  PROGRAM-ID. UTMPRD.
+UTMPRD  ENVIRONMENT DIVISION.
+UTMPRD  CONFIGURATION SECTION.
+UTMPRD  SOURCE-COMPUTER. VAX.
+UTMPRD  OBJECT-COMPUTER. VAX.
+UTMPRD  SPECIAL-NAMES.
+UTMPRD  CONSOLE IS CONS.
+UTMPRD  INPUT-OUTPUT SECTION.
+UTMPRD  FILE-CONTROL.
+UTMPRD  DATA DIVISION.
+UTMPRD  FILE SECTION.
+
+UTMPRD  WORKING-STORAGE SECTION.
+RRRRRR******************START OF IR 22010027*****************
+UTMPRD* 01  WA-MICM-AREA.
+UTMPRD*     COPY MICMMAST IN LIBRYMIS.
+RRRRRR 01  WA-CUID-AREA.
+RRRRRR      COPY CUID IN LIBRYMIS.
+SUMITS 01 WS-UTSMART-RECORD.
+BHAGYA          COPY UTSMARTCPBK IN LIBRYMIS
+BHAGYA           REPLACING ==(TEMP)== BY ==WS==.
+RRRRRR**************END OF IR 22010027*****************
+UTMPRD 01  WA-CUSVAA-AREA.
+UTMPRD     COPY CUSVAA IN LIBRYMIS.
+UTMPRD 01  WA-CUSM-AREA.
+UTMPRD     COPY CUSMMAST IN LIBRYMIS.
+UTMPRD     COPY UT0151CA IN LIBRYMIS.
+UTMPRD     COPY UT8500CA    IN LIBRYMIS.
+UTMPRD     COPY UT8500FU    IN LIBRYMIS.
+000780*------------------START OF IR 17120054------------*
+000790 01  W-PROGRAM-CALLED    PIC X(8)  VALUE  "UT9004".
+000800 01  UT9004CA-CALL-AREA.
+000810     COPY UT9004CA IN LIBRYMIS
+000820     REPLACING ==(UT9004CA)== BY ==UT9004CA==.
+000830 03  SAVE-SYSTEM-MODE        PIC X     VALUE SPACE.
+000840      88  DAY-MODE            VALUE "D".
+000850      88  NIGHT-MODE          VALUE "N".
+000860 03  SAVE-MASTER-IN-USE      PIC 9     VALUE 0.
+000870*----------------END OF IR 17120054-----------------*
+UTMPRD
+UTMPRD      COPY INSPARM IN LIBRYMIS.
+UTMPRD   01 WA-CIF-NAME                   PIC X(40).
+UTMPRD   01 WA-CIF-BRANCH                 PIC X(05).
+UTMPRD   01 WA-CIF-NO                     PIC X(16).
+RRRRRR*-------------START OF IR 22010027-----------------*
+UTMPRD*  01 WA-CIF1-NO                    PIC X(17).
+UTMPRD   01 WA-CIF1-NO                    PIC X(16).
+RRRRRR*-------------END OF IR 22010027-----------------*
+UTMPRD   01 WS-CIF-NO                     PIC X(16).
+UTMPRD   01 WA-LINK-STATUS                PIC X(15).
+ABABAB***************START OF IR 21050018 *****************************
+ABABAB   01 WA-CUST-STATUS                PIC X(03).
+ABABAB***************END OF IR 21050018*********************************
+RRRRRR*-------------START OF IR 22010027-----------------*
+001030 01  UTBRHMCA-CALL-AREA.
+001040     COPY UTBRHMCA IN LIBRYMIS.
+001050 01  UTBRHMRA-CALL-AREA.
+001060     COPY UTBRHMRA IN LIBRYMIS
+001070          REPLACING ==(UTBRHMRA)== BY ==UTBRHMRA==.
+RRRRRR   01 WA-CIRCLE-CODE                PIC X(03).
+001090   01 WA-CHK                        PIC 9(02).
+RRRRRR*-------------END OF IR 22010027-----------------*
+UTMPRD   01 FILLER                        PIC X(1).
+UTMPRD   COPY DBIOCALL IN LIBRYMIS.
+UTMPRD   COPY DBIOMODCA IN LIBRYMIS.
+UTMPRD   03 FILLER                        PIC X(1).
+UTMPRD   COPY DBIOORAST IN LIBRYMIS.
+UTMPRD   COPY DBIOMODNAME IN LIBRYMIS.
+UTMPRD      EXEC SQL 
+UTMPRD      BEGIN DECLARE SECTION END-EXEC.
+UTMPRD      01 DB-CIF-NUMBER           PIC X(16).
+RRRRRR*-------------START OF IR 22010027-----------------*
+UTMPRD*     01 DB-CIF1-NUMBER          PIC X(17).
+UTMPRD      01 DB-CIF1-NUMBER          PIC X(16).
+RRRRRR      01 WA-ID-MAIN              PIC X(1).
+RRRRRR**************END OF IR 22010027*****************
+UTMPRD      01 DB-PAN-NUMBER           PIC X(20).
+UTMPRD      01 DB-MOB-NUMBER           PIC X(12).
+001270*------------START OF IR 18030123------------------*
+UTMPRD      01 DB-EMAIL-ADD            PIC X(50).
+001290*------------END  OF IR 18030123------------------*
+UTMPRD      EXEC SQL END DECLARE SECTION END-EXEC.
+UTMPRD      EXEC SQL INCLUDE SQLCA END-EXEC.
+
+UTMPRD LINKAGE SECTION.
+UTMPRD 01 STARTAREA.
+UTMPRD     COPY STRTAREA IN LIBRYMIS.
+UTMPRD   02  WA-OUTPUT-MESSAGE.
+UTMPRD     03  WA-OUTPUT-ERR-MSG-NO            PIC 9(04).
+UTMPRD     03  WA-OUTPUT-MSG-LENGTH            PIC 9(04).
+PPPPPP*****************START OF IR 20100144(19120118)*******************
+UTMPRD*    03  WA-OUTPUT-MSG                   PIC X(983).
+UTMPRD     03  WA-OUTPUT-MSG.
+PPPPPP       COPY OUTPUTMSG IN LIBRYMIS.
+PPPPPP*****************END OF IR 20100144(19120118)*********************
+UTMPRD     03 WA-UTMPRD-OUT-R  REDEFINES WA-OUTPUT-MSG.
+UTMPRD        05  UTMPRD-OUTPUT-DATA-SET       PIC X(4).
+UTMPRD        05  UTMPRD-OUTPUT-STATUS         PIC X(4).
+UTMPRD        05  FILLER                       PIC X(975).
+PPPPPP*****************START OF IR 20100144(19120118)******************
+PPPPPP        05  FILLER.
+PPPPPP              COPY OUTPUTFLR IN LIBRYMIS.
+PPPPPP*****************END OF IR 20100144(19120118)*********************
+UTMPRD 01 DB-ERROR-CODE                        PIC 9(4).   
+UTMPRD 01 IN-NUMBER1                           PIC X(12).
+UTMPRD 01 IN-NUMBER2                           PIC X(20).
+001550*------------START OF IR 18030123------------------*
+UTMPRD 01 IN-NUMBER3                           PIC X(50).
+001570*------------END  OF IR 18030123------------------*
+UTMPRD 01 WA-CIF                               PIC X(16).
+UTMPRD 01 WA-CIF1                              PIC X(16).
+UTMPRD 01 DATA-VALUES-OUT OCCURS  999 TIMES.
+UTMPRD    03 CIF-NO                            PIC X(17).
+UTMPRD    03 CIF-NAME                          PIC X(40).
+UTMPRD    03 CIF-BRANCH                        PIC X(05).
+UTMPRD    03 LINK-STATUS                       PIC X(15).
+ABABAB***************START OF IR 21050018 *****************************
+ABABAB    03 CUST-STATUS                       PIC X(03).
+ABABAB***************END OF IR 21050018*********************************
+RRRRRR****************START OF IR 22010027***************************
+RRRRRR    03 CIRCLE-CODE                       PIC X(03).
+RRRRRR*****************END OF IR 22010027***************************
+UTMPRD 01 LAST-CIF                             PIC X(16).
+RRRRRR****************START OF IR 22010027***************************
+UTMPRD* 01 LAST-CIF-MICM                        PIC X(16).
+RRRRRR 01 LAST-CIF-CUID                        PIC X(16).
+RRRRRR*****************END OF IR 22010027***************************
+UTMPRD 01 WA-OUT-LENGTH                        PIC 9(03).
+UTMPRD 01 WA-IDX                               PIC 9(2).
+UTMPRD 01 WA-OPTION                            PIC X(1).
+UTMPRD 01 WA-FUNCTION                          PIC X(1).
+
+UTMPRD PROCEDURE DIVISION USING IN-NUMBER1
+UTMPRD                          IN-NUMBER2
+001830*------------START OF IR 18030123------------------*
+UTMPRD                          IN-NUMBER3
+001850*------------END  OF IR 18030123------------------*
+UTMPRD                          WA-CIF
+UTMPRD                          WA-CIF1
+UTMPRD                          WA-OPTION
+UTMPRD                          WA-FUNCTION
+UTMPRD                          LAST-CIF
+RRRRRR****************START OF IR 22010027*********
+UTMPRD*                          LAST-CIF-MICM
+RRRRRR                          LAST-CIF-CUID
+RRRRRR****************END OF IR 22010027*******************
+UTMPRD                          DATA-VALUES-OUT
+UTMPRD                          DB-ERROR-CODE
+UTMPRD                          WA-OUT-LENGTH
+UTMPRD                          WA-IDX
+UTMPRD                          STARTAREA.
+UTMPRD A000-BEGIN-READ.
+002010*---------------START OF IR 17120054-------------------*
+002020 SET UT9004CA-CALL-FOR-GET TO TRUE.
+002030 MOVE "UT9004" TO W-PROGRAM-CALLED.
+002040 CALL W-PROGRAM-CALLED USING UT9004CA-CALL-AREA.
+002050 IF NOT UT9004CA-RETURN-OK
+002060    STRING "UT9004-RETURN-CODE="
+002070           UT9004CA-RETURN-CODE
+002080      DELIMITED BY SIZE
+002090      INTO DBIOMOD-FUNCTION
+002100    END-STRING
+002110  ELSE
+002120     IF UT9004CA-SYSTEM-MODE   NOT = SAVE-SYSTEM-MODE
+002130     OR UT9004CA-MASTER-IN-USE NOT = SAVE-MASTER-IN-USE
+002140     MOVE UT9004CA-SYSTEM-MODE   TO SAVE-SYSTEM-MODE
+002150  END-IF
+002160  END-IF
+002170*--------------END OF IR 17120054-------------------*
+UTMPRD    MOVE 1 TO WA-IDX.
+UTMPRD    INITIALIZE DB-CIF-NUMBER
+UTMPRD               DB-CIF1-NUMBER
+UTMPRD               DB-MOB-NUMBER
+UTMPRD               DB-PAN-NUMBER
+002230*------------START OF IR 18030123------------------*
+UTMPRD               DB-EMAIL-ADD
+002250*------------END  OF IR 18030123------------------*
+RKRKRK***********START OF IR 22010027************************
+ASASAS               WA-ID-MAIN
+002280               WA-CHK
+KEKEKE**************END OF IR 22010027************************
+UTMPRD               DB-ERROR-CODE
+UTMPRD               WA-OUT-LENGTH.
+UTMPRD    MOVE ZEROES TO WA-CIF-NO.
+UTMPRD    MOVE ZEROES TO WA-CIF1-NO.
+UTMPRD    MOVE ZEROES TO WS-CIF-NO.
+UTMPRD    IF WA-FUNCTION = "P"
+002360*---------------START OF IR 17120054-------------------*
+002370     IF DAY-MODE
+002380*--------------END OF IR 17120054-------------------*
+UTMPRD       PERFORM A100-DECLARE-PAN-CPAN THRU A109-CPAN-EXIT
+UTMPRD       PERFORM B100-FETCH            THRU B109-FETCH-EXIT
+002410*---------------START OF IR 17120054-------------------*
+002420      ELSE
+002430    IF UT9004CA-MASTER-IN-USE-IS-1
+UTMPRD       PERFORM A100-DECLARE-PAN-CPAN1 THRU A109-CPAN1-EXIT
+UTMPRD       PERFORM B100-FETCH1            THRU B109-FETCH1-EXIT
+002460      ELSE
+UTMPRD       PERFORM A100-DECLARE-PAN-CPAN2 THRU A109-CPAN2-EXIT
+UTMPRD       PERFORM B100-FETCH2            THRU B109-FETCH2-EXIT
+002490    END-IF
+002500     END-IF
+002510*--------------END OF IR 17120054-------------------*
+UTMPRD    END-IF.
+UTMPRD    IF WA-FUNCTION = "M"
+002540*---------------START OF IR 17120054-------------------*
+002550      IF DAY-MODE
+002560*---------------END OF IR 17120054-------------------*
+UTMPRD       PERFORM A100-DECLARE-MOB-PARA THRU A109-CMOB-EXIT
+UTMPRD       PERFORM B100-FETCH            THRU B109-FETCH-EXIT
+002590*---------------START OF IR 17120054-------------------*
+002600      ELSE
+002610    IF UT9004CA-MASTER-IN-USE-IS-1
+UTMPRD       PERFORM A100-DECLARE-MOB1-PARA THRU A109-CMOB1-EXIT
+UTMPRD       PERFORM B100-FETCH1            THRU B109-FETCH1-EXIT
+002640    ELSE
+UTMPRD       PERFORM A100-DECLARE-MOB2-PARA THRU A109-CMOB2-EXIT
+UTMPRD       PERFORM B100-FETCH2            THRU B109-FETCH2-EXIT
+002670     END-IF
+002680*--------------END OF IR 17120054-------------------*
+002690*------------START OF IR 18030123------------------*
+UTMPRD    END-IF
+002710*------------ END OF IR 18030123------------------*
+UTMPRD   END-IF.
+002730*------------START OF IR 18030123------------------*
+UTMPRD    IF WA-FUNCTION = "E"
+002750      IF DAY-MODE
+UTMPRD       PERFORM A100-DECLARE-EMAIL-PARA THRU A109-EMAIL-EXIT
+UTMPRD       PERFORM B100-FETCH            THRU B109-FETCH-EXIT
+002780    ELSE
+002790    IF UT9004CA-MASTER-IN-USE-IS-1
+UTMPRD       PERFORM A100-DECLARE-EMAIL1-PARA THRU A109-EMAIL1-EXIT
+UTMPRD       PERFORM B100-FETCH1            THRU B109-FETCH1-EXIT
+002820    ELSE
+UTMPRD       PERFORM A100-DECLARE-EMAIL2-PARA THRU A109-EMAIL2-EXIT
+UTMPRD       PERFORM B100-FETCH2            THRU B109-FETCH2-EXIT
+002850     END-IF
+UTMPRD    END-IF
+UTMPRD    END-IF.
+002880*------------ END OF IR 18030123------------------*
+UTMPRD  
+UTMPRD A999-EXIT.
+UTMPRD    EXIT.
+UTMPRD EXIT PROGRAM.
+
+UTMPRD A100-DECLARE-PAN-CPAN.
+UTMPRD    MOVE IN-NUMBER2 TO DB-PAN-NUMBER.
+UTMPRD    MOVE WA-CIF     TO DB-CIF-NUMBER.
+UTMPRD      EXEC SQL DECLARE GETCPAN CURSOR FOR
+UTMPRD      SELECT CUST_NO
+UTMPRD      FROM CPAN 
+UTMPRD      WHERE SOC_NO       = '003'
+UTMPRD      AND   CUST_PAN_NO  = :DB-PAN-NUMBER
+UTMPRD      AND   CUST_NO      > :DB-CIF-NUMBER
+UTMPRD      ORDER BY CUST_NO ASC
+UTMPRD      END-EXEC.
+UTMPRD      EXEC SQL OPEN GETCPAN END-EXEC.
+UTMPRD
+UTMPRD A109-CPAN-EXIT.
+UTMPRD    EXIT.
+
+003100*---------------START OF IR 17120054-------------------*
+UTMPRD A100-DECLARE-PAN-CPAN1.
+UTMPRD    MOVE IN-NUMBER2 TO DB-PAN-NUMBER.
+UTMPRD    MOVE WA-CIF     TO DB-CIF-NUMBER.
+UTMPRD      EXEC SQL DECLARE GETCPAN1 CURSOR FOR
+UTMPRD      SELECT CUST_NO
+UTMPRD      FROM TMP_1_CPAN
+UTMPRD      WHERE SOC_NO       = '003'
+UTMPRD      AND   CUST_PAN_NO  = :DB-PAN-NUMBER
+UTMPRD      AND   CUST_NO      > :DB-CIF-NUMBER
+UTMPRD      ORDER BY CUST_NO ASC
+UTMPRD      END-EXEC.
+UTMPRD      EXEC SQL OPEN GETCPAN1 END-EXEC.
+UTMPRD
+UTMPRD A109-CPAN1-EXIT.
+UTMPRD    EXIT.
+
+UTMPRD A100-DECLARE-PAN-CPAN2.
+UTMPRD    MOVE IN-NUMBER2 TO DB-PAN-NUMBER.
+UTMPRD    MOVE WA-CIF     TO DB-CIF-NUMBER.
+UTMPRD      EXEC SQL DECLARE GETCPAN2 CURSOR FOR
+UTMPRD      SELECT CUST_NO
+UTMPRD      FROM TMP_2_CPAN
+UTMPRD      WHERE SOC_NO       = '003'
+UTMPRD      AND   CUST_PAN_NO  = :DB-PAN-NUMBER
+UTMPRD      AND   CUST_NO      > :DB-CIF-NUMBER
+UTMPRD      ORDER BY CUST_NO ASC
+UTMPRD      END-EXEC.
+UTMPRD      EXEC SQL OPEN GETCPAN2 END-EXEC.
+UTMPRD
+UTMPRD A109-CPAN2-EXIT.
+UTMPRD    EXIT.
+003420*--------------END OF IR 17120054-------------------*
+
+RRRRRR*************START OF IR 22010027*******************
+RRRRRR R900-DECLARE-CUID.
+RRRRRR     MOVE IN-NUMBER2 TO DB-PAN-NUMBER.
+RKRKRK     MOVE WA-CIF1    TO DB-CIF1-NUMBER.
+RRRRRR        EXEC SQL DECLARE GETCUID CURSOR FOR
+RRRRRR        SELECT CUST_NO,ID_MAIN
+RRRRRR        FROM CUID
+RRRRRR        WHERE INST_NO      = '003'
+RRRRRR        AND   ID_NUMBER    = :DB-PAN-NUMBER
+RRRRRR        AND   ID_TYPE      = '0007'
+RRRRRR        AND   CUST_NO      > :DB-CIF1-NUMBER
+RRRRRR        ORDER BY CUST_NO ASC
+RRRRRR        END-EXEC.
+RRRRRR        EXEC SQL OPEN GETCUID END-EXEC.
+RRRRRR
+RRRRRR R909-CUID-EXIT.
+RRRRRR    EXIT.
+
+RRRRRR R900-DECLARE-CUID1.
+RRRRRR     MOVE IN-NUMBER2 TO DB-PAN-NUMBER.
+RKRKRK     MOVE WA-CIF1    TO DB-CIF1-NUMBER.
+RRRRRR        EXEC SQL DECLARE GETCUID1 CURSOR FOR
+RRRRRR        SELECT CUST_NO,ID_MAIN
+MMMMMM************START OF IR 23110048**************
+RRRRRR*        FROM TEMP_1_CUID
+MMMMMM        FROM TMP_1_CUID
+MMMMMM************END OF IR 23110048**************
+RRRRRR        WHERE INST_NO      = '003'
+RRRRRR        AND   ID_NUMBER    = :DB-PAN-NUMBER
+RRRRRR        AND   ID_TYPE      = '0007'
+RRRRRR        AND   CUST_NO      > :DB-CIF1-NUMBER
+RRRRRR        ORDER BY CUST_NO ASC
+RRRRRR        END-EXEC.
+RRRRRR        EXEC SQL OPEN GETCUID1 END-EXEC.
+RRRRRR
+RRRRRR R909-CUID1-EXIT.
+RRRRRR    EXIT.
+
+RRRRRR R900-DECLARE-CUID2.
+RRRRRR     MOVE IN-NUMBER2 TO DB-PAN-NUMBER.
+RKRKRK     MOVE WA-CIF1    TO DB-CIF1-NUMBER.
+RRRRRR        EXEC SQL DECLARE GETCUID2 CURSOR FOR
+RRRRRR        SELECT CUST_NO,ID_MAIN
+MMMMMM************START OF IR 23110048**************
+RRRRRR*        FROM TEMP_2_ CUID
+MMMMMM        FROM TMP_2_CUID
+MMMMMM************END OF IR 23110048************** 
+RRRRRR        WHERE INST_NO      = '003'
+RRRRRR        AND   ID_NUMBER    = :DB-PAN-NUMBER
+RRRRRR        AND   ID_TYPE      = '0007'
+RRRRRR        AND   CUST_NO      > :DB-CIF1-NUMBER
+RRRRRR        ORDER BY CUST_NO ASC
+RRRRRR        END-EXEC.
+RRRRRR        EXEC SQL OPEN GETCUID2 END-EXEC.
+RRRRRR
+RRRRRR R909-CUID2-EXIT.
+RRRRRR    EXIT.
+
+UTMPRD*A100-DECLARE-MICM.
+UTMPRD*   MOVE IN-NUMBER2 TO DB-PAN-NUMBER.
+UTMPRD*   MOVE WA-CIF1    TO UT0151CA-ACCT-IN.
+UTMPRD*   PERFORM N000-REFORMAT-OUTPUT-AC-NO THRU N099-EXIT.
+UTMPRD*   MOVE UT0151CA-ACCT-EX TO DB-CIF1-NUMBER.
+UTMPRD*     EXEC SQL DECLARE GETMICM CURSOR FOR
+UTMPRD*     SELECT CUSTOMER_NO
+UTMPRD*     FROM MICM
+UTMPRD*     WHERE INST_NO      = '003'
+UTMPRD*     AND   ID_NO        = :DB-PAN-NUMBER
+UTMPRD*     AND   ID_TYPE      = '07'
+UTMPRD*     AND   CUSTOMER_NO  > :DB-CIF1-NUMBER
+UTMPRD*     ORDER BY CUSTOMER_NO ASC
+UTMPRD*     END-EXEC.
+UTMPRD*     EXEC SQL OPEN GETMICM END-EXEC.
+UTMPRD
+UTMPRD*A109-MICM-EXIT.
+UTMPRD*   EXIT.
+RRRRRR******************END OF IR 22010027*****************
+
+004220*---------------START OF IR 17120054-------------------*
+RRRRRR******************START OF IR 22010027*****************
+UTMPRD*A100-DECLARE-MICM1.
+UTMPRD*   MOVE IN-NUMBER2 TO DB-PAN-NUMBER.
+UTMPRD*   MOVE WA-CIF1    TO UT0151CA-ACCT-IN.
+UTMPRD*   PERFORM N000-REFORMAT-OUTPUT-AC-NO THRU N099-EXIT.
+UTMPRD*   MOVE UT0151CA-ACCT-EX TO DB-CIF1-NUMBER.
+UTMPRD*     EXEC SQL DECLARE GETMICM1 CURSOR FOR
+UTMPRD*     SELECT CUSTOMER_NO
+UTMPRD*     FROM TMP_1_MICM
+UTMPRD*     WHERE INST_NO      = '003'
+UTMPRD*     AND   ID_NO        = :DB-PAN-NUMBER
+UTMPRD*     AND   ID_TYPE      = '07'
+UTMPRD*     AND   CUSTOMER_NO  > :DB-CIF1-NUMBER
+UTMPRD*     ORDER BY CUSTOMER_NO ASC
+UTMPRD*     END-EXEC.
+UTMPRD*     EXEC SQL OPEN GETMICM1 END-EXEC.
+UTMPRD
+UTMPRD*A109-MICM1-EXIT.
+UTMPRD*   EXIT.
+
+UTMPRD*A100-DECLARE-MICM2.
+UTMPRD*   MOVE IN-NUMBER2 TO DB-PAN-NUMBER.
+UTMPRD*   MOVE WA-CIF1    TO UT0151CA-ACCT-IN.
+UTMPRD*   PERFORM N000-REFORMAT-OUTPUT-AC-NO THRU N099-EXIT.
+UTMPRD*   MOVE UT0151CA-ACCT-EX TO DB-CIF1-NUMBER.
+UTMPRD*     EXEC SQL DECLARE GETMICM2 CURSOR FOR
+UTMPRD*     SELECT CUSTOMER_NO
+UTMPRD*     FROM TMP_2_MICM
+UTMPRD*     WHERE INST_NO      = '003'
+UTMPRD*     AND   ID_NO        = :DB-PAN-NUMBER
+UTMPRD*     AND   ID_TYPE      = '07'
+UTMPRD*     AND   CUSTOMER_NO  > :DB-CIF1-NUMBER
+UTMPRD*     ORDER BY CUSTOMER_NO ASC
+UTMPRD*     END-EXEC.
+UTMPRD*     EXEC SQL OPEN GETMICM2 END-EXEC.
+UTMPRD
+UTMPRD*A109-MICM2-EXIT.
+UTMPRD*   EXIT.
+RRRRRR*****************END OF IR 22010027*****************
+004620*--------------END OF IR 17120054-------------------*
+
+UTMPRD A100-DECLARE-MOB-PARA.
+UTMPRD    MOVE IN-NUMBER1(1:12) TO DB-MOB-NUMBER.
+UTMPRD    MOVE WA-CIF          TO DB-CIF-NUMBER.
+UTMPRD      EXEC SQL DECLARE GETCMOB CURSOR FOR
+UTMPRD      SELECT CUST_NO
+UTMPRD      FROM CMOB
+UTMPRD      WHERE SOC_NO       = '003'
+UTMPRD      AND   CUST_MOB_NO  = :DB-MOB-NUMBER
+UTMPRD      AND   CUST_NO      > :DB-CIF-NUMBER
+PPPPPP*************START OF IR 18100095*******************************
+PPPPPP      AND   IDENTIFIER   = 'P'
+PPPPPP*************END OF IR 18100095*********************************
+UTMPRD      ORDER BY CUST_NO ASC
+UTMPRD      END-EXEC.
+UTMPRD      EXEC SQL OPEN GETCMOB END-EXEC.
+UTMPRD
+UTMPRD A109-CMOB-EXIT.
+UTMPRD    EXIT.
+004820*------------START OF IR 18030123------------------*
+UTMPRD A100-DECLARE-EMAIL-PARA.
+UTMPRD    MOVE IN-NUMBER3      TO DB-EMAIL-ADD.
+UTMPRD    MOVE WA-CIF          TO DB-CIF-NUMBER.
+UTMPRD      EXEC SQL DECLARE GETEMAIL CURSOR FOR
+UTMPRD      SELECT CUST_NO
+UTMPRD      FROM CUMI
+UTMPRD      WHERE INST_NO      = '003'
+UTMPRD      AND   EMAIL_ADD1   = :DB-EMAIL-ADD
+UTMPRD      AND   CUST_NO      > :DB-CIF-NUMBER
+UTMPRD      ORDER BY CUST_NO ASC
+UTMPRD      END-EXEC.
+UTMPRD      EXEC SQL OPEN GETEMAIL END-EXEC.
+UTMPRD
+UTMPRD A109-EMAIL-EXIT.
+UTMPRD    EXIT.
+
+UTMPRD A100-DECLARE-EMAIL1-PARA.
+UTMPRD    MOVE IN-NUMBER3      TO DB-EMAIL-ADD.
+UTMPRD    MOVE WA-CIF          TO DB-CIF-NUMBER.
+UTMPRD      EXEC SQL DECLARE GETEMAIL1 CURSOR FOR
+UTMPRD      SELECT CUST_NO
+UTMPRD      FROM TMP_1_CUMI
+UTMPRD      WHERE INST_NO      = '003'
+UTMPRD      AND   EMAIL_ADD1   = :DB-EMAIL-ADD
+UTMPRD      AND   CUST_NO      > :DB-CIF-NUMBER
+UTMPRD      ORDER BY CUST_NO ASC
+UTMPRD      END-EXEC.
+UTMPRD      EXEC SQL OPEN GETEMAIL1 END-EXEC.
+UTMPRD
+UTMPRD A109-EMAIL1-EXIT.
+UTMPRD    EXIT.
+
+
+UTMPRD A100-DECLARE-EMAIL2-PARA.
+UTMPRD    MOVE IN-NUMBER3      TO DB-EMAIL-ADD.
+UTMPRD    MOVE WA-CIF          TO DB-CIF-NUMBER.
+UTMPRD      EXEC SQL DECLARE GETEMAIL2 CURSOR FOR
+UTMPRD      SELECT CUST_NO
+UTMPRD      FROM TMP_2_CUMI
+UTMPRD      WHERE INST_NO      = '003'
+UTMPRD      AND   EMAIL_ADD1   = :DB-EMAIL-ADD
+UTMPRD      AND   CUST_NO      > :DB-CIF-NUMBER
+UTMPRD      ORDER BY CUST_NO ASC
+UTMPRD      END-EXEC.
+UTMPRD      EXEC SQL OPEN GETEMAIL2 END-EXEC.
+UTMPRD
+UTMPRD A109-EMAIL2-EXIT.
+UTMPRD    EXIT.
+
+005320*------------END  OF IR 18030123------------------*
+
+005340*---------------START OF IR 17120054-------------------*
+UTMPRD A100-DECLARE-MOB1-PARA.
+UTMPRD    MOVE IN-NUMBER1(1:12) TO DB-MOB-NUMBER.
+UTMPRD    MOVE WA-CIF          TO DB-CIF-NUMBER.
+UTMPRD      EXEC SQL DECLARE GETCMOB1 CURSOR FOR
+UTMPRD      SELECT CUST_NO
+UTMPRD      FROM TMP_1_CMOB
+UTMPRD      WHERE SOC_NO       = '003'
+UTMPRD      AND   CUST_MOB_NO  = :DB-MOB-NUMBER
+UTMPRD      AND   CUST_NO      > :DB-CIF-NUMBER
+PPPPPP******************START OF IR 18100095**************************
+PPPPPP      AND   IDENTIFIER   = 'P'
+PPPPPP******************END OF IR 18100095****************************
+UTMPRD      ORDER BY CUST_NO ASC
+UTMPRD      END-EXEC.
+UTMPRD      EXEC SQL OPEN GETCMOB1 END-EXEC.
+UTMPRD
+UTMPRD A109-CMOB1-EXIT.
+UTMPRD    EXIT.
+
+UTMPRD A100-DECLARE-MOB2-PARA.
+UTMPRD    MOVE IN-NUMBER1(1:12) TO DB-MOB-NUMBER.
+UTMPRD    MOVE WA-CIF          TO DB-CIF-NUMBER.
+UTMPRD      EXEC SQL DECLARE GETCMOB2 CURSOR FOR
+UTMPRD      SELECT CUST_NO
+UTMPRD      FROM TMP_2_CMOB
+UTMPRD      WHERE SOC_NO       = '003'
+UTMPRD      AND   CUST_MOB_NO  = :DB-MOB-NUMBER
+UTMPRD      AND   CUST_NO      > :DB-CIF-NUMBER
+PPPPPP******************START OF IR 18100095**************************
+PPPPPP      AND   IDENTIFIER   = 'P'
+PPPPPP******************END OF IR 18100095****************************
+UTMPRD      ORDER BY CUST_NO ASC
+UTMPRD      END-EXEC.
+UTMPRD      EXEC SQL OPEN GETCMOB2 END-EXEC.
+UTMPRD
+UTMPRD A109-CMOB2-EXIT.
+UTMPRD    EXIT.
+005720*--------------END OF IR 17120054-------------------*
+
+
+UTMPRD B100-FETCH.
+005760*--------------START OF IR 17120054-------------------*
+005770   IF UT9004CA-TRACESTATE-ON
+bbbbbb       STRING "READCSRC: GETCPAN"
+bbbbbb       "(B100) ENTRY - FUNCTION " UTMPRD-OUTPUT-STATUS
+bbbbbb       " CIF-NO " WA-CIF
+bbbbbb       " FETCH DONE "
+005820            DELIMITED BY SIZE INTO UT8500CA-INPUT-MSG
+005830       CALL "UT8500" USING
+005840              UT8500CA-AREA
+005850
+005860  END-IF
+005870*--------------END OF IR 17120054-------------------*
+UTMPRD   IF WA-IDX > 99
+UTMPRD      SUBTRACT 1 FROM WA-IDX
+UTMPRD      MOVE WA-CIF-NO TO LAST-CIF
+UTMPRD      GO TO B109-FETCH-EXIT
+UTMPRD   END-IF.
+UTMPRD    IF WA-FUNCTION = "P"
+UTMPRD      EXEC SQL FETCH GETCPAN 
+UTMPRD        INTO :WA-CIF-NO
+UTMPRD      END-EXEC
+UTMPRD    END-IF.
+UTMPRD    IF WA-FUNCTION = "M"
+UTMPRD      EXEC SQL FETCH GETCMOB
+UTMPRD        INTO :WA-CIF-NO
+UTMPRD      END-EXEC
+UTMPRD    END-IF.
+
+006040*---------------START OF IR 18030123-----------------*
+UTMPRD    IF WA-FUNCTION = "E"
+UTMPRD      EXEC SQL FETCH GETEMAIL
+UTMPRD        INTO :WA-CIF-NO
+UTMPRD      END-EXEC
+UTMPRD    END-IF.
+006100*----------------END OF IR 18030123--------------------*
+
+HOT      IF SQLCODE = +1403 OR 100
+UTMPRD      IF WA-FUNCTION = "P"
+UTMPRD      EXEC SQL CLOSE GETCPAN END-EXEC
+UTMPRD         MOVE WA-CIF-NO TO LAST-CIF
+006160*---------------START OF IR 23110048-----------------*
+KKKKKK         IF WA-IDX = 1
+KKKKKK            MOVE WA-CIF TO LAST-CIF
+KKKKKK         END-IF
+006200*---------------END OF IR 23110048-----------------*
+RRRRRR****************START OF IR 22010027*******************
+UT0PRD*         PERFORM A100-DECLARE-MICM THRU A109-MICM-EXIT
+UTMPRD*         PERFORM B100-FETCH-MICM   THRU B109-MICM-EXIT
+RRRRRR         PERFORM R900-DECLARE-CUID THRU R909-CUID-EXIT
+RRRRRR         PERFORM R800-FETCH-CUID THRU R809-CUID-EXIT
+RRRRRR****************END OF IR 22010027*******************
+UTMPRD         GO TO B109-FETCH-EXIT
+UTMPRD      ELSE
+UTMPRD        IF WA-IDX > 1
+UTMPRD           MOVE ZEROS TO DB-ERROR-CODE
+UTMPRD           MOVE WA-CIF-NO TO LAST-CIF
+UTMPRD           GO TO B109-FETCH-EXIT
+UTMPRD        ELSE
+006340*---------------START OF IR 18030123-----------------*
+UTMPRD*  IF WA-OPTION = "M"
+PPPPPP   IF (WA-OPTION = "M") OR (WA-OPTION = "E")
+006370*----------------END OF IR 18030123--------------------*
+UTMPRD              MOVE 9966 TO DB-ERROR-CODE
+UTMPRD           ELSE
+UTMPRD              MOVE 188 TO DB-ERROR-CODE
+UTMPRD           END-IF
+UTMPRD           GO TO B109-FETCH-EXIT
+UTMPRD        END-IF
+UTMPRD      END-IF
+UTMPRD   END-IF.
+UTMPRD   IF SQLCODE = ZEROS
+RRRRRR****************START OF IR 22010027*******************
+006480*---------------START OF IR 23110048-----------------*
+UTMPRD*    IF WA-FUNCTION = "P"
+SANSAN*     PERFORM R900-DECLARE-CUID THRU R909-CUID-EXIT
+SAN001*     PERFORM R800-FETCH-CUID THRU R809-CUID-EXIT
+SAN002*     IF WA-CHK > 0
+SAN003*        MOVE ZEROS TO DB-ERROR-CODE
+UTMPRD*        MOVE WA-CIF-NO TO LAST-CIF
+SAN005*     EXEC SQL CLOSE GETCPAN END-EXEC
+UTMPRD*        GO TO B109-FETCH-EXIT
+SAN004*     END-IF
+SAN009*    END-IF
+006590*---------------END OF IR 23110048-----------------*
+RRRRRR****************END OF IR 22010027*******************
+UTMPRD      MOVE WA-CIF-NO TO WS-CIF-NO
+UTMPRD      MOVE WA-CIF-NO TO UT0151CA-ACCT-IN
+UTMPRD      PERFORM B101-MOVE-CIF-NUM  THRU B199-MOVE-CIF-NUM-EXIT
+UTMPRD      PERFORM B101-FETCH-NAME    THRU B199-FETCH-NAME-EXIT
+UTMPRD      PERFORM B101-FETCH-BRANCH  THRU B199-FETCH-BRANCH-EXIT
+UTMPRD      PERFORM B101-LINK1-STATUS  THRU B199-LINK1-EXIT
+UTMPRD      ADD 1 TO WA-IDX
+ABABAB***************START OF IR 21050018 *****************************
+UTMPRD*      ADD 77 TO WA-OUT-LENGTH
+RRRRRR***************START OF IR 22010027*******************************
+UTMPRD*      ADD 80 TO WA-OUT-LENGTH
+RRRRRR       ADD 83 TO WA-OUT-LENGTH
+RRRRRR***************END OF IR 22010027*******************************
+ABABAB***************START OF IR 21050018 *****************************
+UTMPRD      GO TO B100-FETCH
+UTMPRD   ELSE 
+UTMPRD      MOVE 155 TO DB-ERROR-CODE
+UTMPRD   END-IF.
+UTMPRD    IF WA-FUNCTION = "P"
+UTMPRD      EXEC SQL CLOSE GETCPAN END-EXEC
+UTMPRD    END-IF.
+UTMPRD    IF WA-FUNCTION = "M"
+UTMPRD      EXEC SQL CLOSE GETCMOB END-EXEC
+UTMPRD    END-IF.
+006850*---------------START OF IR 18030123-----------------*
+UTMPRD    IF WA-FUNCTION = "E"
+UTMPRD      EXEC SQL CLOSE GETEMAIL END-EXEC
+UTMPRD    END-IF.
+006890*----------------END OF IR 18030123--------------------*
+UTMPRD
+UTMPRD B109-FETCH-EXIT.  
+UTMPRD   EXIT.  
+006930
+006940*---------------START OF IR 17120054-------------------*
+UTMPRD B100-FETCH1.
+006960   IF UT9004CA-TRACESTATE-ON
+bbbbbb       STRING "READCSRC: GETCPAN1"
+bbbbbb       "(B100) ENTRY - FUNCTION " UTMPRD-OUTPUT-STATUS
+bbbbbb       " CIF-NO " WA-CIF
+bbbbbb       " FETCH DONE "
+007010            DELIMITED BY SIZE INTO UT8500CA-INPUT-MSG
+007020       CALL "UT8500" USING
+007030              UT8500CA-AREA
+007040
+007050  END-IF
+UTMPRD   IF WA-IDX > 99
+UTMPRD      SUBTRACT 1 FROM WA-IDX
+UTMPRD      MOVE WA-CIF-NO TO LAST-CIF
+UTMPRD      GO TO B109-FETCH1-EXIT
+UTMPRD   END-IF.
+UTMPRD    IF WA-FUNCTION = "P"
+UTMPRD      EXEC SQL FETCH GETCPAN1
+UTMPRD        INTO :WA-CIF-NO
+UTMPRD      END-EXEC
+UTMPRD    END-IF.
+UTMPRD    IF WA-FUNCTION = "M"
+UTMPRD      EXEC SQL FETCH GETCMOB1
+UTMPRD        INTO :WA-CIF-NO
+UTMPRD      END-EXEC
+UTMPRD    END-IF.
+007210*---------------START OF IR 18030123-----------------*
+UTMPRD    IF WA-FUNCTION = "E"
+UTMPRD      EXEC SQL FETCH GETEMAIL1
+UTMPRD        INTO :WA-CIF-NO
+UTMPRD      END-EXEC
+UTMPRD    END-IF.
+007270*----------------END OF IR 18030123--------------------*
+UTMPRD   IF SQLCODE = +1403
+UTMPRD      IF WA-FUNCTION = "P"
+UTMPRD      EXEC SQL CLOSE GETCPAN1 END-EXEC
+UTMPRD         MOVE WA-CIF-NO TO LAST-CIF
+007320*---------------START OF IR 23110048-----------------*
+KKKKKK         IF WA-IDX = 1
+KKKKKK            MOVE WA-CIF TO LAST-CIF
+KKKKKK         END-IF
+007360*---------------END OF IR 23110048-----------------*
+RRRRRR*************START OF IR 22010027************************
+UTMPRD*         PERFORM A100-DECLARE-MICM1 THRU A109-MICM1-EXIT
+UTMPRD*         PERFORM B100-FETCH-MICM1   THRU B109-MICM1-EXIT
+RRRRRR         PERFORM R900-DECLARE-CUID1 THRU R909-CUID1-EXIT
+RRRRRR         PERFORM R800-FETCH-CUID1 THRU R809-CUID1-EXIT
+RRRRRR****************END OF IR 22010027************************
+UTMPRD         GO TO B109-FETCH1-EXIT
+UTMPRD      ELSE
+UTMPRD        IF WA-IDX > 1
+UTMPRD           MOVE ZEROS TO DB-ERROR-CODE
+UTMPRD           MOVE WA-CIF-NO TO LAST-CIF
+UTMPRD           GO TO B109-FETCH1-EXIT
+UTMPRD        ELSE
+007500*---------------START OF IR 18030123-----------------*
+UTMPRD*          IF WA-OPTION = "M"
+UTMPRD         IF WA-OPTION = "M" OR WA-OPTION = "E"
+007530*----------------END OF IR 18030123--------------------*
+UTMPRD              MOVE 9966 TO DB-ERROR-CODE
+UTMPRD           ELSE
+UTMPRD              MOVE 188 TO DB-ERROR-CODE
+UTMPRD           END-IF
+UTMPRD           GO TO B109-FETCH1-EXIT
+UTMPRD        END-IF
+UTMPRD      END-IF
+UTMPRD   END-IF.
+UTMPRD   IF SQLCODE = ZEROS
+RRRRRR*************START OF IR 22010027************************
+007640*---------------START OF IR 23110048-----------------*
+UTMPRD*    IF WA-FUNCTION = "P"
+RRRRRR*     PERFORM R900-DECLARE-CUID1 THRU R909-CUID1-EXIT
+RRRRRR*     PERFORM R800-FETCH-CUID1 THRU R809-CUID1-EXIT
+SAN002*     IF WA-CHK > 0
+SAN003*        MOVE ZEROS TO DB-ERROR-CODE
+UTMPRD*        MOVE WA-CIF-NO TO LAST-CIF
+SAN005*     EXEC SQL CLOSE GETCPAN1 END-EXEC
+UTMPRD*        GO TO B109-FETCH1-EXIT
+SAN004*     END-IF
+SAN007*    END-IF
+007750*---------------END OF IR 23110048-----------------*
+RRRRRR****************END OF IR 22010027************************
+UTMPRD      MOVE WA-CIF-NO TO WS-CIF-NO
+UTMPRD      MOVE WA-CIF-NO TO UT0151CA-ACCT-IN
+UTMPRD      PERFORM B101-MOVE-CIF-NUM  THRU B199-MOVE-CIF-NUM-EXIT
+UTMPRD      PERFORM B101-FETCH1-NAME    THRU B199-FETCH1-NAME-EXIT
+UTMPRD      PERFORM B101-FETCH1-BRANCH  THRU B199-FETCH1-BRANCH-EXIT
+UTMPRD      PERFORM B101-LINK1-STATUS  THRU B199-LINK1-EXIT
+UTMPRD      ADD 1 TO WA-IDX
+ABABAB***************START OF IR 21050018 *****************************
+UTMPRD*      ADD 77 TO WA-OUT-LENGTH
+RRRRRR*******************START OF IR 22010027**************************
+UTMPRD*      ADD 80 TO WA-OUT-LENGTH
+RRRRRR       ADD 83 TO WA-OUT-LENGTH
+RRRRRR*******************END OF IR 22010027**************************
+ABABAB***************START OF IR 21050018 *****************************
+UTMPRD      GO TO B100-FETCH1
+UTMPRD   ELSE
+UTMPRD      MOVE 155 TO DB-ERROR-CODE
+UTMPRD   END-IF.
+UTMPRD    IF WA-FUNCTION = "P"
+UTMPRD      EXEC SQL CLOSE GETCPAN1 END-EXEC
+UTMPRD    END-IF.
+UTMPRD    IF WA-FUNCTION = "M"
+UTMPRD      EXEC SQL CLOSE GETCMOB1 END-EXEC
+UTMPRD    END-IF.
+008010*---------------START OF IR 18030123-----------------*
+UTMPRD    IF WA-FUNCTION = "E"
+UTMPRD      EXEC SQL CLOSE GETEMAIL1 END-EXEC
+UTMPRD    END-IF.
+008050*----------------END OF IR 18030123--------------------*
+UTMPRD
+UTMPRD B109-FETCH1-EXIT.
+UTMPRD   EXIT.
+
+UTMPRD B100-FETCH2.
+008110   IF UT9004CA-TRACESTATE-ON
+bbbbbb       STRING "READCSRC: GETCPAN22"
+bbbbbb       "(B100) ENTRY - FUNCTION " UTMPRD-OUTPUT-STATUS
+bbbbbb       " CIF-NO " WA-CIF
+bbbbbb       " FETCH DONE "
+008160            DELIMITED BY SIZE INTO UT8500CA-INPUT-MSG
+008170       CALL "UT8500" USING
+008180              UT8500CA-AREA
+008190
+008200  END-IF
+UTMPRD   IF WA-IDX > 99
+UTMPRD      SUBTRACT 1 FROM WA-IDX
+UTMPRD      MOVE WA-CIF-NO TO LAST-CIF
+UTMPRD      GO TO B109-FETCH2-EXIT
+UTMPRD   END-IF.
+UTMPRD    IF WA-FUNCTION = "P"
+UTMPRD      EXEC SQL FETCH GETCPAN2
+UTMPRD        INTO :WA-CIF-NO
+UTMPRD      END-EXEC
+UTMPRD    END-IF.
+UTMPRD    IF WA-FUNCTION = "M"
+UTMPRD      EXEC SQL FETCH GETCMOB2
+UTMPRD        INTO :WA-CIF-NO
+UTMPRD      END-EXEC
+UTMPRD    END-IF.
+008360*---------------START OF IR 18030123-----------------*
+UTMPRD    IF WA-FUNCTION = "E"
+UTMPRD      EXEC SQL FETCH GETEMAIL2
+UTMPRD        INTO :WA-CIF-NO
+UTMPRD      END-EXEC
+UTMPRD    END-IF.
+008420*----------------END OF IR 18030123--------------------*
+UTMPRD   IF SQLCODE = +1403
+UTMPRD      IF WA-FUNCTION = "P"
+UTMPRD      EXEC SQL CLOSE GETCPAN2 END-EXEC
+UTMPRD         MOVE WA-CIF-NO TO LAST-CIF
+008470*---------------START OF IR 23110048-----------------*
+KKKKKK         IF WA-IDX = 1
+KKKKKK            MOVE WA-CIF TO LAST-CIF
+KKKKKK         END-IF
+008510*---------------END OF IR 23110048-----------------*
+RRRRRR***************START OF IR 22010027*********************
+UTMPRD*         PERFORM A100-DECLARE-MICM2 THRU A109-MICM2-EXIT
+UTMPRD*         PERFORM B100-FETCH-MICM2   THRU B109-MICM2-EXIT
+RRRRRR         PERFORM R900-DECLARE-CUID2 THRU R909-CUID2-EXIT
+RRRRRR         PERFORM R800-FETCH-CUID2 THRU R809-CUID2-EXIT
+RRRRRR****************END OF IR 22010027*******************
+UTMPRD         GO TO B109-FETCH2-EXIT
+UTMPRD      ELSE
+UTMPRD        IF WA-IDX > 1
+UTMPRD           MOVE ZEROS TO DB-ERROR-CODE
+UTMPRD           MOVE WA-CIF-NO TO LAST-CIF
+UTMPRD           GO TO B109-FETCH2-EXIT
+UTMPRD        ELSE
+008650*---------------START OF IR 18030123-----------------*
+UTMPRD*          IF WA-OPTION = "M"
+UTMPRD  IF (WA-OPTION = "M") OR (WA-OPTION = "E")
+008680*----------------END OF IR 18030123--------------------*
+UTMPRD              MOVE 9966 TO DB-ERROR-CODE
+UTMPRD           ELSE
+UTMPRD              MOVE 188 TO DB-ERROR-CODE
+UTMPRD           END-IF
+UTMPRD           GO TO B109-FETCH2-EXIT
+UTMPRD        END-IF
+UTMPRD      END-IF
+UTMPRD   END-IF.
+UTMPRD   IF SQLCODE = ZEROS
+RRRRRR***************START OF IR 22010027*********************
+008790*---------------START OF IR 23110048-----------------*
+UTMPRD*    IF WA-FUNCTION = "P"
+RRRRRR*     PERFORM R900-DECLARE-CUID2 THRU R909-CUID2-EXIT
+RRRRRR*     PERFORM R800-FETCH-CUID2 THRU R809-CUID2-EXIT
+SAN002*     IF WA-CHK > 0
+SAN003*        MOVE ZEROS TO DB-ERROR-CODE
+UTMPRD*        MOVE WA-CIF-NO TO LAST-CIF
+SAN005*     EXEC SQL CLOSE GETCPAN2 END-EXEC
+UTMPRD*        GO TO B109-FETCH2-EXIT
+SAN004*     END-IF
+SAN008*    END-IF
+008900*---------------END OF IR 23110048-----------------*
+RRRRRR****************END OF IR 22010027*******************
+UTMPRD      MOVE WA-CIF-NO TO WS-CIF-NO
+UTMPRD      MOVE WA-CIF-NO TO UT0151CA-ACCT-IN
+UTMPRD      PERFORM B101-MOVE-CIF-NUM  THRU B199-MOVE-CIF-NUM-EXIT
+UTMPRD      PERFORM B101-FETCH2-NAME    THRU B199-FETCH2-NAME-EXIT
+UTMPRD      PERFORM B101-FETCH2-BRANCH  THRU B199-FETCH2-BRANCH-EXIT
+UTMPRD      PERFORM B101-LINK1-STATUS  THRU B199-LINK1-EXIT
+UTMPRD      ADD 1 TO WA-IDX
+CACACA*---------------START OF IR 21050018-----------------*
+UTMPRD*      ADD 77 TO WA-OUT-LENGTH
+RERERE**********************START OF IR 22010027****************
+UTMPRD*     ADD 80 TO WA-OUT-LENGTH
+ANANAN      ADD 83 TO WA-OUT-LENGTH
+009040********************END OF IR 22010027********************
+CACACA*----------------END OF IR 21050018--------------------*
+UTMPRD      GO TO B100-FETCH2
+UTMPRD   ELSE
+UTMPRD      MOVE 155 TO DB-ERROR-CODE
+UTMPRD   END-IF.
+UTMPRD    IF WA-FUNCTION = "P"
+UTMPRD      EXEC SQL CLOSE GETCPAN2 END-EXEC
+UTMPRD    END-IF.
+UTMPRD    IF WA-FUNCTION = "M"
+UTMPRD      EXEC SQL CLOSE GETCMOB2 END-EXEC
+UTMPRD    END-IF.
+009160*---------------START OF IR 18030123-----------------*
+UTMPRD    IF WA-FUNCTION = "E"
+UTMPRD      EXEC SQL CLOSE GETEMAIL2 END-EXEC
+UTMPRD    END-IF.
+009200*----------------END OF IR 18030123--------------------*
+UTMPRD
+UTMPRD B109-FETCH2-EXIT.
+UTMPRD   EXIT.
+009240*--------------END OF IR 17120054-------------------*
+
+RRRRRR*****************START OF IR 22010027*****************
+UTMPRD R800-FETCH-CUID.
+UTMPRD   IF WA-IDX > 99
+UTMPRD      SUBTRACT 1 FROM WA-IDX
+UTMPRD      MOVE WA-CIF1-NO TO LAST-CIF-CUID
+UTMPRD      GO TO R809-CUID-EXIT
+UTMPRD   END-IF.
+UTMPRD      EXEC SQL FETCH GETCUID
+UTMPRD        INTO :WA-CIF1-NO,
+RRRRRR             :WA-ID-MAIN
+UTMPRD      END-EXEC.
+BALAJI*****************START OF IR 24100230********************************
+UTMPRD*  IF SQLCODE = +1403
+HOT      IF SQLCODE = +1403 OR 100
+BALAJI*****************END OF IR 24100230********************************             
+UTMPRD     IF WA-IDX > 1
+UTMPRD        MOVE ZEROS TO DB-ERROR-CODE
+UTMPRD        MOVE WA-CIF1-NO TO LAST-CIF-CUID
+UTMPRD        GO TO R809-CUID-EXIT
+UTMPRD     ELSE
+UTMPRD       IF WA-OPTION = "M"
+UTMPRD          MOVE 9966 TO DB-ERROR-CODE
+UTMPRD       ELSE
+UTMPRD          MOVE 188 TO DB-ERROR-CODE
+UTMPRD       END-IF
+UTMPRD       GO TO R809-CUID-EXIT
+UTMPRD     END-IF
+UTMPRD   END-IF.
+UTMPRD   IF SQLCODE = ZEROS
+UTMPRD      MOVE WA-CIF1-NO           TO WS-CIF-NO 
+UTMPRD      MOVE WA-CIF1-NO           TO UT0151CA-ACCT-IN
+UTMPRD      PERFORM B101-MOVE-CIF-NUM THRU B199-MOVE-CIF-NUM-EXIT
+UTMPRD      PERFORM B101-FETCH-NAME   THRU B199-FETCH-NAME-EXIT
+UTMPRD      PERFORM B101-FETCH-BRANCH THRU B199-FETCH-BRANCH-EXIT
+UTMPRD      PERFORM B101-LINK2-STATUS THRU B199-LINK2-EXIT
+UTMPRD      ADD 1 TO WA-IDX
+009590      ADD 1 TO WA-CHK
+UTMPRD      ADD 83 TO WA-OUT-LENGTH
+UTMPRD      GO TO R800-FETCH-CUID
+UTMPRD   ELSE
+UTMPRD      MOVE 155 TO DB-ERROR-CODE
+UTMPRD   END-IF.
+UTMPRD      EXEC SQL CLOSE GETCUID END-EXEC.
+UTMPRD
+UTMPRD R809-CUID-EXIT.
+RRRRRR   EXIT.
+
+UTMPRD R800-FETCH-CUID1.
+UTMPRD   IF WA-IDX > 10
+UTMPRD      SUBTRACT 1 FROM WA-IDX
+UTMPRD      MOVE WA-CIF1-NO TO LAST-CIF-CUID
+UTMPRD      GO TO R809-CUID1-EXIT
+UTMPRD   END-IF.
+UTMPRD      EXEC SQL FETCH GETCUID1
+UTMPRD        INTO :WA-CIF1-NO,
+RRRRRR             :WA-ID-MAIN
+UTMPRD      END-EXEC.
+UTMPRD   IF SQLCODE = +1403
+UTMPRD     IF WA-IDX > 1
+UTMPRD        MOVE ZEROS TO DB-ERROR-CODE
+UTMPRD        MOVE WA-CIF1-NO TO LAST-CIF-CUID
+UTMPRD        GO TO R809-CUID1-EXIT
+UTMPRD     ELSE
+UTMPRD       IF WA-OPTION = "M"
+UTMPRD          MOVE 9966 TO DB-ERROR-CODE
+UTMPRD       ELSE
+UTMPRD          MOVE 188 TO DB-ERROR-CODE
+UTMPRD       END-IF
+UTMPRD       GO TO R809-CUID1-EXIT
+UTMPRD     END-IF
+UTMPRD   END-IF.
+UTMPRD   IF SQLCODE = ZEROS
+UTMPRD      MOVE WA-CIF1-NO           TO WS-CIF-NO
+UTMPRD      MOVE WA-CIF1-NO           TO UT0151CA-ACCT-IN
+UTMPRD      PERFORM B101-MOVE-CIF-NUM THRU B199-MOVE-CIF-NUM-EXIT
+UTMPRD      PERFORM B101-FETCH1-NAME   THRU B199-FETCH1-NAME-EXIT
+UTMPRD      PERFORM B101-FETCH1-BRANCH THRU B199-FETCH1-BRANCH-EXIT
+UTMPRD      PERFORM B101-LINK2-STATUS THRU B199-LINK2-EXIT
+UTMPRD      ADD 1 TO WA-IDX
+010020      ADD 1 TO WA-CHK
+UTMPRD      ADD 83 TO WA-OUT-LENGTH
+UTMPRD      GO TO R800-FETCH-CUID1
+UTMPRD   ELSE
+UTMPRD      MOVE 155 TO DB-ERROR-CODE
+UTMPRD   END-IF.
+UTMPRD      EXEC SQL CLOSE GETCUID1 END-EXEC.
+UTMPRD
+UTMPRD R809-CUID1-EXIT.
+RRRRRR   EXIT.
+
+UTMPRD R800-FETCH-CUID2.
+UTMPRD   IF WA-IDX > 10
+UTMPRD      SUBTRACT 1 FROM WA-IDX
+UTMPRD      MOVE WA-CIF1-NO TO LAST-CIF-CUID
+UTMPRD      GO TO R809-CUID2-EXIT
+UTMPRD   END-IF.
+UTMPRD      EXEC SQL FETCH GETCUID2
+UTMPRD        INTO :WA-CIF1-NO,
+RRRRRR             :WA-ID-MAIN
+UTMPRD      END-EXEC.
+UTMPRD   IF SQLCODE = +1403
+UTMPRD     IF WA-IDX > 1
+UTMPRD        MOVE ZEROS TO DB-ERROR-CODE
+UTMPRD        MOVE WA-CIF1-NO TO LAST-CIF-CUID
+UTMPRD        GO TO R809-CUID2-EXIT
+UTMPRD     ELSE
+UTMPRD       IF WA-OPTION = "M"
+UTMPRD          MOVE 9966 TO DB-ERROR-CODE
+UTMPRD       ELSE
+UTMPRD          MOVE 188 TO DB-ERROR-CODE
+UTMPRD       END-IF
+UTMPRD       GO TO R809-CUID2-EXIT
+UTMPRD     END-IF
+UTMPRD   END-IF.
+UTMPRD   IF SQLCODE = ZEROS
+UTMPRD      MOVE WA-CIF1-NO           TO WS-CIF-NO
+UTMPRD      MOVE WA-CIF1-NO           TO UT0151CA-ACCT-IN
+UTMPRD      PERFORM B101-MOVE-CIF-NUM THRU B199-MOVE-CIF-NUM-EXIT
+UTMPRD      PERFORM B101-FETCH2-NAME   THRU B199-FETCH2-NAME-EXIT
+UTMPRD      PERFORM B101-FETCH2-BRANCH THRU B199-FETCH2-BRANCH-EXIT
+UTMPRD      PERFORM B101-LINK2-STATUS THRU B199-LINK2-EXIT
+UTMPRD      ADD 1 TO WA-IDX
+010450      ADD 1 TO WA-CHK
+UTMPRD      ADD 83 TO WA-OUT-LENGTH
+UTMPRD      GO TO R800-FETCH-CUID2
+UTMPRD   ELSE
+UTMPRD      MOVE 155 TO DB-ERROR-CODE
+UTMPRD   END-IF.
+UTMPRD      EXEC SQL CLOSE GETCUID2 END-EXEC.
+UTMPRD
+UTMPRD R809-CUID2-EXIT.
+RRRRRR   EXIT.
+
+UTMPRD*B100-FETCH-MICM.
+UTMPRD*  IF WA-IDX > 10
+UTMPRD*     SUBTRACT 1 FROM WA-IDX
+UTMPRD*     MOVE WA-CIF1-NO TO LAST-CIF-MICM
+UTMPRD*     GO TO B109-MICM-EXIT
+UTMPRD*  END-IF.
+UTMPRD*     EXEC SQL FETCH GETMICM
+UTMPRD*       INTO :WA-CIF1-NO
+UTMPRD*     END-EXEC.
+UTMPRD*  IF SQLCODE = +1403
+UTMPRD*    IF WA-IDX > 1
+UTMPRD*       MOVE ZEROS TO DB-ERROR-CODE
+UTMPRD*       MOVE WA-CIF1-NO TO LAST-CIF-MICM
+UTMPRD*       GO TO B109-MICM-EXIT
+UTMPRD*    ELSE
+UTMPRD*      IF WA-OPTION = "M"
+UTMPRD*         MOVE 9966 TO DB-ERROR-CODE
+UTMPRD*      ELSE
+UTMPRD*         MOVE 188 TO DB-ERROR-CODE
+UTMPRD*      END-IF
+UTMPRD*      GO TO B109-MICM-EXIT
+UTMPRD*    END-IF
+UTMPRD*  END-IF.
+UTMPRD*  IF SQLCODE = ZEROS
+UTMPRD*     MOVE ZEROS                TO UT0151CA-ACCT-IN(1:6)
+UTMPRD*                                  WS-CIF-NO(1:6)
+UTMPRD*     MOVE WA-CIF1-NO(1:10)      TO UT0151CA-ACCT-IN(7:10)
+UTMPRD*                                  WS-CIF-NO(7:10)
+UTMPRD*     PERFORM B101-MOVE-CIF-NUM THRU B199-MOVE-CIF-NUM-EXIT
+UTMPRD*     PERFORM B101-FETCH-NAME   THRU B199-FETCH-NAME-EXIT
+UTMPRD*     PERFORM B101-FETCH-BRANCH THRU B199-FETCH-BRANCH-EXIT
+UTMPRD*     PERFORM B101-LINK2-STATUS THRU B199-LINK2-EXIT
+UTMPRD*     ADD 1 TO WA-IDX
+RRRRRR*************END OF IR 22010027*******************************
+ABABAB***************START OF IR 21050018 *****************************
+UTMPRD*      ADD 77 TO WA-OUT-LENGTH
+RRRRRR*************START OF IR 22010027*******************************
+UTMPRD*     ADD 80 TO WA-OUT-LENGTH
+RRRRRR*************END OF IR 22010027*******************************
+ABABAB***************START OF IR 21050018 *****************************
+RRRRRR*************START OF IR 22010027*******************************
+UTMPRD*     GO TO B100-FETCH-MICM
+UTMPRD*  ELSE
+UTMPRD*     MOVE 155 TO DB-ERROR-CODE
+UTMPRD*  END-IF.
+UTMPRD*     EXEC SQL CLOSE GETMICM END-EXEC.
+UTMPRD
+UTMPRD*B109-MICM-EXIT.
+UTMPRD*   EXIT.
+RRRRRR*************END OF IR 22010027*******************************
+011060*---------------START OF IR 17120054-------------------*
+RRRRRR*************START OF IR 22010027*******************************
+UTMPRD*B100-FETCH-MICM1.
+UTMPRD*  IF WA-IDX > 10
+UTMPRD*     SUBTRACT 1 FROM WA-IDX
+UTMPRD*     MOVE WA-CIF1-NO TO LAST-CIF-MICM
+UTMPRD*     GO TO B109-MICM1-EXIT
+UTMPRD*  END-IF.
+UTMPRD*     EXEC SQL FETCH GETMICM1
+UTMPRD*       INTO :WA-CIF1-NO
+UTMPRD*     END-EXEC.
+UTMPRD*  IF SQLCODE = +1403
+UTMPRD*    IF WA-IDX > 1
+UTMPRD*       MOVE ZEROS TO DB-ERROR-CODE
+UTMPRD*       MOVE WA-CIF1-NO TO LAST-CIF-MICM
+UTMPRD*       GO TO B109-MICM1-EXIT
+UTMPRD*    ELSE
+UTMPRD*      IF WA-OPTION = "M"
+UTMPRD*         MOVE 9966 TO DB-ERROR-CODE
+UTMPRD*      ELSE
+UTMPRD*         MOVE 188 TO DB-ERROR-CODE
+UTMPRD*      END-IF
+UTMPRD*      GO TO B109-MICM1-EXIT
+UTMPRD*    END-IF
+UTMPRD*  END-IF.
+UTMPRD*  IF SQLCODE = ZEROS
+UTMPRD*     MOVE ZEROS                TO UT0151CA-ACCT-IN(1:6)
+UTMPRD*                                  WS-CIF-NO(1:6)
+UTMPRD*     MOVE WA-CIF1-NO(1:10)      TO UT0151CA-ACCT-IN(7:10)
+UTMPRD*                                  WS-CIF-NO(7:10)
+UTMPRD*     PERFORM B101-MOVE-CIF-NUM THRU B199-MOVE-CIF-NUM-EXIT
+UTMPRD*     PERFORM B101-FETCH1-NAME    THRU B199-FETCH1-NAME-EXIT
+UTMPRD*     PERFORM B101-FETCH1-BRANCH  THRU B199-FETCH1-BRANCH-EXIT
+UTMPRD*     PERFORM B101-LINK2-STATUS THRU B199-LINK2-EXIT
+UTMPRD*     ADD 1 TO WA-IDX
+RRRRRR*************END OF IR 22010027*******************************
+ABABAB***************START OF IR 21050018 *****************************
+UTMPRD*      ADD 77 TO WA-OUT-LENGTH
+RRRRRR*************START OF IR 22010027*******************************
+UTMPRD*     ADD 80 TO WA-OUT-LENGTH
+RRRRRR*************END OF IR 22010027*******************************
+ABABAB***************START OF IR 21050018 *****************************
+RRRRRR*************START OF IR 22010027*******************************
+UTMPRD*     GO TO B100-FETCH-MICM1
+UTMPRD*  ELSE
+UTMPRD*     MOVE 155 TO DB-ERROR-CODE
+UTMPRD*  END-IF.
+UTMPRD*     EXEC SQL CLOSE GETMICM1 END-EXEC.
+UTMPRD
+UTMPRD*B109-MICM1-EXIT.
+UTMPRD*   EXIT.
+
+UTMPRD*B100-FETCH-MICM2.
+UTMPRD*  IF WA-IDX > 10
+UTMPRD*     SUBTRACT 1 FROM WA-IDX
+UTMPRD*     MOVE WA-CIF1-NO TO LAST-CIF-MICM
+UTMPRD*     GO TO B109-MICM2-EXIT
+UTMPRD*  END-IF.
+UTMPRD*     EXEC SQL FETCH GETMICM2
+UTMPRD*       INTO :WA-CIF1-NO
+UTMPRD*     END-EXEC.
+UTMPRD*  IF SQLCODE = +1403
+UTMPRD*    IF WA-IDX > 1
+UTMPRD*       MOVE ZEROS TO DB-ERROR-CODE
+UTMPRD*       MOVE WA-CIF1-NO TO LAST-CIF-MICM
+UTMPRD*       GO TO B109-MICM2-EXIT
+UTMPRD*    ELSE
+UTMPRD*      IF WA-OPTION = "M"
+UTMPRD*         MOVE 9966 TO DB-ERROR-CODE
+UTMPRD*      ELSE
+UTMPRD*         MOVE 188 TO DB-ERROR-CODE
+UTMPRD*      END-IF
+UTMPRD*      GO TO B109-MICM2-EXIT
+UTMPRD*    END-IF
+UTMPRD*  END-IF.
+UTMPRD*  IF SQLCODE = ZEROS
+UTMPRD*     MOVE ZEROS                TO UT0151CA-ACCT-IN(1:6)
+UTMPRD*                                  WS-CIF-NO(1:6)
+UTMPRD*     MOVE WA-CIF1-NO(1:10)      TO UT0151CA-ACCT-IN(7:10)
+UTMPRD*                                  WS-CIF-NO(7:10)
+UTMPRD*     PERFORM B101-MOVE-CIF-NUM THRU B199-MOVE-CIF-NUM-EXIT
+UTMPRD*     PERFORM B101-FETCH2-NAME    THRU B199-FETCH2-NAME-EXIT
+UTMPRD*     PERFORM B101-FETCH2-BRANCH  THRU B199-FETCH2-BRANCH-EXIT
+UTMPRD*     PERFORM B101-LINK2-STATUS THRU B199-LINK2-EXIT
+UTMPRD*     ADD 1 TO WA-IDX
+RRRRRR*************END OF IR 22010027*******************************
+ABABAB***************START OF IR 21050018 *****************************
+UTMPRD*      ADD 77 TO WA-OUT-LENGTH
+RRRRRR*************START OF IR 22010027*******************************
+UTMPRD*     ADD 80 TO WA-OUT-LENGTH
+RRRRRR*************END OF IR 22010027*******************************
+ABABAB***************END OF IR 21050018 *****************************
+RRRRRR*************START OF IR 22010027******************************
+UTMPRD*     GO TO B100-FETCH-MICM2
+UTMPRD*  ELSE
+UTMPRD*     MOVE 155 TO DB-ERROR-CODE
+UTMPRD*  END-IF.
+UTMPRD*     EXEC SQL CLOSE GETMICM2 END-EXEC.
+UTMPRD
+UTMPRD*B109-MICM2-EXIT.
+UTMPRD*   EXIT.
+RRRRRR*************END OF IR 22010027*******************************
+012080*---------------END OF IR 17120054-------------------*
+
+UTMPRD B101-MOVE-CIF-NUM.
+UTMPRD    PERFORM N000-REFORMAT-OUTPUT-AC-NO THRU N099-EXIT.
+UTMPRD    MOVE UT0151CA-ACCT-EX TO CIF-NO(WA-IDX).
+UTMPRD
+UTMPRD B199-MOVE-CIF-NUM-EXIT.
+UTMPRD    EXIT.
+
+UTMPRD B101-FETCH-NAME.
+012180*---------------START OF IR 17120054-------------------*
+012190  INITIALIZE WA-CIF-NAME
+012200*--------------END OF IR 17120054-------------------*
+UTMPRD      EXEC SQL
+UTMPRD       SELECT NAME1
+UTMPRD       INTO :WA-CIF-NAME
+UTMPRD       FROM CUSVAA 
+UTMPRD       WHERE INST_NO = '003'
+UTMPRD       AND CUST_NO = :WS-CIF-NO
+UTMPRD      END-EXEC.
+UTMPRD    MOVE WA-CIF-NAME TO CIF-NAME(WA-IDX).
+UTMPRD    
+UTMPRD B199-FETCH-NAME-EXIT.
+UTMPRD    EXIT.
+
+012330*---------------START OF IR 17120054-------------------*
+UTMPRD B101-FETCH1-NAME.
+012350  INITIALIZE WA-CIF-NAME
+UTMPRD      EXEC SQL
+UTMPRD       SELECT NAME1
+UTMPRD       INTO :WA-CIF-NAME
+UTMPRD       FROM TMP_1_CUSVAA
+UTMPRD       WHERE INST_NO = '003'
+UTMPRD       AND CUST_NO = :WS-CIF-NO
+UTMPRD      END-EXEC.
+UTMPRD    MOVE WA-CIF-NAME TO CIF-NAME(WA-IDX).
+UTMPRD
+UTMPRD B199-FETCH1-NAME-EXIT.
+UTMPRD    EXIT.
+
+UTMPRD B101-FETCH2-NAME.
+012490  INITIALIZE WA-CIF-NAME
+UTMPRD      EXEC SQL
+UTMPRD       SELECT NAME1
+UTMPRD       INTO :WA-CIF-NAME
+UTMPRD       FROM TMP_2_CUSVAA
+UTMPRD       WHERE INST_NO = '003'
+UTMPRD       AND CUST_NO = :WS-CIF-NO
+UTMPRD      END-EXEC.
+UTMPRD    MOVE WA-CIF-NAME TO CIF-NAME(WA-IDX).
+UTMPRD
+UTMPRD B199-FETCH2-NAME-EXIT.
+UTMPRD    EXIT.
+012610*--------------END OF IR 17120054-------------------*
+
+012630*---------------START OF IR 17120054-------------------*
+UTMPRD* B101-FETCH-NAME-MICM.
+UTMPRD*     EXEC SQL
+UTMPRD*      SELECT NAME1
+UTMPRD*      INTO :WA-CIF-NAME
+UTMPRD*      FROM CUSVAA
+UTMPRD*      WHERE INST_NO = '003'
+UTMPRD*      AND CUST_NO = :WS-CIF-NO
+UTMPRD*     END-EXEC.
+UTMPRD*   MOVE WA-CIF-NAME TO CIF-NAME(WA-IDX).
+UTMPRD* B199-FETCH-NAME-MICM-EXIT.
+UTMPRD*   EXIT.
+012750*---------------END OF IR 17120054-------------------*
+
+UTMPRD B101-FETCH-BRANCH.
+012780*---------------START OF IR 17120054-------------------*
+012790  INITIALIZE WA-CIF-BRANCH
+012800*---------------END OF IR 17120054-------------------*
+CA0000*---------------START OF IR 21050018-----------------*
+CA0000  INITIALIZE WA-CUST-STATUS
+CA0000*---------------END OF IR 21050018-------------------*
+UTMPRD      EXEC SQL
+ABABAB***************START OF IR 21050018 *****************************
+UTMPRD*       SELECT HOME_BRANCH_NO
+ABABAB       SELECT HOME_BRANCH_NO,CUSTOMER_STATUS
+UTMPRD*       INTO :WA-CIF-BRANCH
+ABABAB       INTO :WA-CIF-BRANCH,
+ABABAB            :WA-CUST-STATUS
+ABABAB***************END OF IR 21050018*********************************
+UTMPRD       FROM CUSM
+UTMPRD       WHERE SOC_NO = '003'
+UTMPRD       AND CUST_ACCT_NO = :WS-CIF-NO
+UTMPRD      END-EXEC.
+UTMPRD    MOVE WA-CIF-BRANCH TO CIF-BRANCH(WA-IDX).
+UTMPRD
+ABABAB***************START OF IR 21050018 *****************************
+ABABAB    MOVE WA-CUST-STATUS TO CUST-STATUS(WA-IDX).
+ABABAB***************END OF IR 21050018 ********************************
+ANANAN***************START OF IR 22010027*******************************
+013020    PERFORM R909-FETCH-CIRCLE-CODE THRU R909-EXIT.
+ANANAN****************END OF IR 22010027********************************
+UTMPRD B199-FETCH-BRANCH-EXIT.
+UTMPRD    EXIT.
+
+
+013080*---------------START OF IR 17120054-------------------*
+UTMPRD B101-FETCH1-BRANCH.
+013100  INITIALIZE WA-CIF-BRANCH
+CA0000*---------------START OF IR 21050018-----------------*
+CA0000  INITIALIZE WA-CUST-STATUS
+CA0000*---------------END OF IR 21050018-------------------*
+UTMPRD      EXEC SQL
+ABABAB***************START OF IR 21050018 *****************************
+UTMPRD*       SELECT HOME_BRANCH_NO
+ABABAB       SELECT HOME_BRANCH_NO,CUSTOMER_STATUS
+UTMPRD*       INTO :WA-CIF-BRANCH
+ABABAB        INTO :WA-CIF-BRANCH, 
+ABABAB             :WA-CUST-STATUS
+ABABAB***************END OF IR  21050018 ******************************* 
+UTMPRD       FROM TMP_1_CUSM
+UTMPRD       WHERE SOC_NO = '003'
+UTMPRD       AND CUST_ACCT_NO = :WS-CIF-NO
+UTMPRD      END-EXEC.
+UTMPRD    MOVE WA-CIF-BRANCH TO CIF-BRANCH(WA-IDX).
+ABABAB***************START OF IR 21050018 *****************************
+ABABAB    MOVE WA-CUST-STATUS TO CUST-STATUS(WA-IDX).
+ABABAB***************END OF IR 21050018 ********************************
+ANANAN***************START OF IR 22010027*******************************
+013310    PERFORM R909-FETCH-CIRCLE-CODE THRU R909-EXIT.
+ANANAN****************END OF IR 22010027********************************
+UTMPRD
+UTMPRD B199-FETCH1-BRANCH-EXIT.
+UTMPRD    EXIT.
+
+UTMPRD B101-FETCH2-BRANCH.
+013380  INITIALIZE WA-CIF-BRANCH
+CA0000*---------------START OF IR 21050018-----------------*
+CA0000  INITIALIZE WA-CUST-STATUS
+CA0000*---------------END OF IR 21050018-------------------*
+UTMPRD      EXEC SQL
+ABABAB***************START OF IR 21050018 *****************************
+UTMPRD*       SELECT HOME_BRANCH_NO
+ABABAB       SELECT HOME_BRANCH_NO,CUSTOMER_STATUS
+UTMPRD*       INTO :WA-CIF-BRANCH
+ABABAB        INTO :WA-CIF-BRANCH,
+ABABAB            :WA-CUST-STATUS
+ABABAB***************END OF IR 21050018 ******************************** 
+UTMPRD       FROM TMP_2_CUSM
+UTMPRD       WHERE SOC_NO = '003'
+UTMPRD       AND CUST_ACCT_NO = :WS-CIF-NO
+UTMPRD      END-EXEC.
+UTMPRD    MOVE WA-CIF-BRANCH TO CIF-BRANCH(WA-IDX).
+ABABAB***************START OF IR 21050018 *****************************
+ABABAB    MOVE WA-CUST-STATUS TO CUST-STATUS(WA-IDX).
+ABABAB***************END OF IR 21050018 ********************************
+ANANAN***************START OF IR 22010027*******************************
+013590    PERFORM R909-FETCH-CIRCLE-CODE THRU R909-EXIT.
+ANANAN****************END OF IR 22010027********************************
+UTMPRD
+UTMPRD B199-FETCH2-BRANCH-EXIT.
+UTMPRD    EXIT.
+013640*--------------END OF IR 17120054-------------------*
+
+
+UTMPRD B101-LINK1-STATUS.
+UTMPRD    IF WA-FUNCTION = "M"
+UTMPRD       MOVE "--" TO LINK-STATUS(WA-IDX) 
+UTMPRD    END-IF.
+UTMPRD    IF WA-FUNCTION = "P"
+UTMPRD       MOVE "NOT AN ID PROOF" TO LINK-STATUS(WA-IDX)
+UTMPRD    END-IF.
+013740*----------START OF IR 18030123 --------------*
+UTMPRD    IF WA-FUNCTION = "E"
+UTMPRD       MOVE "--" TO LINK-STATUS(WA-IDX)
+UTMPRD    END-IF.
+013780*----------END OF IR 18030123 --------------*
+UTMPRD
+UTMPRD B199-LINK1-EXIT.
+UTMPRD    EXIT.
+
+UTMPRD B101-LINK2-STATUS.
+UTMPRD    IF WA-FUNCTION = "P"
+AAAAAA**************START OF IR 22010027*************************
+UTMPRD*      MOVE "IS AN ID PROOF" TO LINK-STATUS(WA-IDX)
+013870       IF WA-ID-MAIN = "Y"
+RRRRRR         MOVE "ID1"  TO  LINK-STATUS (WA-IDX)
+013890       ELSE IF WA-ID-MAIN = "N"
+ARRRRR           MOVE "ID2"  TO  LINK-STATUS (WA-IDX)
+013910         ELSE IF WA-ID-MAIN = SPACES 
+013920           MOVE "ADD"  TO  LINK-STATUS (WA-IDX)
+KKKKKK           END-IF     
+ASASAS         END-IF
+ASASAS       END-IF
+AAAAAA**************END OF IR 22010027*************************
+UTMPRD    END-IF.
+UTMPRD
+UTMPRD B199-LINK2-EXIT.
+UTMPRD    EXIT.
+
+AAAAAA**************START OF IR 22010027*************************
+RRRRRR R909-FETCH-CIRCLE-CODE.
+RRRRRR    INITIALIZE UTBRHMCA-CALL-AREA
+RRRRRR          UTBRHMRA-CALL-AREA.
+RRRRRR    MOVE WA-CIF-BRANCH        TO UTBRHMCA-BRCH-NO
+HOT       MOVE '003'       TO STRT-AREA-SOC-NO.
+RRRRRR    MOVE STRT-AREA-SOC-NO     TO UTBRHMCA-SOC-NO
+RRRRRR    MOVE 2                    TO UTBRHMCA-CALL-CODE
+RRRRRR    CALL "UTBRHM" USING UTBRHMCA-CALL-AREA
+TTTTTT                   UTBRHMRA-CALL-AREA
+RRRRRR      IF UTBRHMCA-STATUS = 0
+AAAAAA       MOVE UTBRHMRA-CIRLCE-CODE TO
+RRRRRR                                CIRCLE-CODE(WA-IDX)
+RRRRRR      ELSE
+014150*---------------START OF IR 23110048-----------------*
+KKKKKK       MOVE SPACES TO CIRCLE-CODE(WA-IDX)
+MDMDMD*      MOVE 206    TO WA-OUTPUT-ERR-MSG-NO
+MDMDMD*      MOVE 2      TO WS-UTSMART-SEVERE-MESSAGE
+MDMDMD*      MOVE SPACES TO UT8500CA-INPUT-MSG
+MDMDMD*      STRING "UTMPRD(R909):NO BRANCH RECORD FOUND"
+MDMDMD*      "/FUNCTION:" DBIOMOD-FUNCTION
+MDMDMD*      "/STATUS:"   DBIOMOD-STAT
+MDMDMD*      "/KEY:"      DBIOMOD-KEY-NO
+MDMDMD*      DELIMITED BY SIZE INTO UT8500CA-INPUT-MSG
+MDMDMD*      PERFORM A700-UTSMRT  THRU A799-SMRT-EXIT
+014260*---------------END OF IR 23110048-----------------*
+RRRRRR      END-IF.
+RRRRRR R909-EXIT.
+RRRRRR     EXIT.
+AAAAAA**************END OF IR 22010027*************************
+
+UTMPRD N000-REFORMAT-OUTPUT-AC-NO.
+UTMPRD    MOVE 2 TO UT0151CA-CALL-FUNC.
+UTMPRD    MOVE SOC-ACCT-NO-FORMAT  TO  UT0151CA-FORMAT
+HOT       MOVE  10                 TO SOC-CHK-DGT
+UTMPRD    MOVE SOC-CHK-DGT         TO  UT0151CA-CHK-DGT-TYPE
+UTMPRD    CALL "UT0151" USING UT0151CA-CALL-AREA.
+UTMPRD    IF  UT0151CA-STATUS = 0
+UTMPRD        GO TO N099-EXIT
+UTMPRD    ELSE 
+UTMPRD        MOVE 155 TO DB-ERROR-CODE 
+UTMPRD    END-IF.
+UTMPRD
+UTMPRD N099-EXIT.
+UTMPRD    EXIT.
+RRRRRR*************START OF IR 22010027**************************
+PPPPPP A700-UTSMRT.
+AMITKS             MOVE 3  TO WS-UTSMART-CALL-CODE
+AMITKS             CALL "UTSMART" USING WS-UTSMART-RECORD
+AMITKS             MOVE UT8500CA-FUNC-NORMAL-DISPLAY
+AMITKS              TO UT8500CA-CALL-CODE
+AMITKS             MOVE "N" TO UT8500CA-RESPONSE-REQD-FLAG
+AMITKS             CALL "UT8500"   USING      UT8500CA-AREA.
+PPPPPP A799-SMRT-EXIT.
+PPPPPP  EXIT.
+RRRRRR****************END OF IR 22010027*************************
+
