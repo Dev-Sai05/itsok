@@ -1,0 +1,35 @@
+CR - 25030013 has been raised To fix the response time in the E1MRService.
+
+Code modifications are done in CR - 25030013
+
+Log db initial save and update logdb code has been removed
+
+Branch and teller validations has been removed
+
+Framework aggregator removed and cpu memory configurations increased for high throughput.
+
+Due to techops approval and service made in java CR 25030013 has been cancelled.
+
+
+
+
+
+If New CR raised to initiate the E1MRService Again below points need to handle.
+
+Service should work for 24h Region Mode (Day, Night, Ref, Log).
+
+Respoonse time has to be in milliseconds need to handle in Cobol.
+
+If E1MRService will use in production continously with heavy load, DBIO and Cobol cannot handle Multithreading, High Requests.
+
+Refactoring of Cobol Components has to be done. same CBS codes cannot be used in visual cobol microservice due to response and architecture issues.
+
+Memory and CPU consumptions has to take care.
+
+Pods and DB Connections has to be finalized 
+
+
+
+
+
+
