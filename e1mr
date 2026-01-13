@@ -28,7 +28,131 @@ Memory and CPU consumptions has to take care.
 
 Pods and DB Connections has to be finalized 
 
+-------------------------------------------------------------------------------------------------------
 
+CR 25030013 was raised to address response time issues in the E1MRService.
+
+As part of CR 25030013, the following changes were implemented:
+
+Removed initial save and update logic for Log DB
+
+Removed branch and teller validations
+
+Removed framework aggregator
+
+Increased CPU and memory configurations to support high throughput
+
+However, based on TechOps approval and the strategic decision to implement the service in Java, CR 25030013 has been cancelled.
+
+If a new CR is raised to re-initiate E1MRService using Visual COBOL microservices, the following points must be addressed mandatorily:
+
+1. 24x7 Region Mode Support
+
+Service must work seamlessly across Day, Night, Ref, and Log regions
+
+Region switching logic should be validated under load and failover scenarios
+
+2. Response Time Constraints
+
+Response time must be in milliseconds
+
+COBOL-based processing needs optimization at:
+
+File access
+
+DBIO calls
+
+Data movement and copybook handling
+
+3. Multithreading & Concurrency Limitations
+
+DBIO and native COBOL do not support multithreading
+
+Visual COBOL services cannot efficiently handle:
+
+High concurrency
+
+Burst traffic
+
+This creates a scalability bottleneck in microservice architecture
+
+4. COBOL Component Refactoring
+
+Existing CBS COBOL programs cannot be reused directly
+
+Significant refactoring is required due to:
+
+Monolithic design
+
+Synchronous processing model
+
+Shared resource usage
+
+Same CBS code base is not suitable for low-latency microservices
+
+5. Connection & Resource Contention Risks
+
+Shared DB connections can cause:
+
+Thread blocking
+
+Long wait times
+
+Transaction failures under load
+
+Connection lifecycle management becomes critical in Visual COBOL services
+
+6. Memory & CPU Consumption
+
+Visual COBOL services have higher:
+
+Memory footprint
+
+CPU usage compared to Java-based services
+
+Improper sizing can lead to:
+
+Pod restarts
+
+OOM errors
+
+Performance degradation
+
+7. Pod Sizing & DB Pool Finalization
+
+Number of pods and DB connections must be finalized upfront
+
+Over-scaling pods will not improve throughput due to COBOL limitations
+
+DB pool exhaustion is a high-risk area
+
+8. Observability & Debugging Challenges
+
+Limited support for:
+
+Distributed tracing
+
+Fine-grained performance metrics
+
+Root cause analysis becomes difficult under production load
+
+9. High Availability & Failover Considerations
+
+COBOL services need careful handling for:
+
+Session/state management
+
+Restart and recovery scenarios
+
+Stateless design is difficult to enforce with existing COBOL components
+
+10. Long-Term Maintainability Risk
+
+Any future enhancements or performance tuning will be complex
+
+Dependency on legacy COBOL limits flexibility compared to Java microservices
+
+Considering the above constraints, these aspects must be thoroughly evaluated before proceeding with a new CR for E1MRService using Visual COBOL microservices, to avoid scalability, performance, and operational risks in production.
 
 
 
